@@ -6,7 +6,7 @@ import { Search, MapPin, Loader2, Apple, SlidersHorizontal, X, LocateFixed, Came
 import { RestaurantCard, type Restaurant, type HealthScore } from "@/components/RestaurantCard";
 import { FoodScanner } from "@/components/FoodScanner";
 
-const USERNAME = "demo-user";
+const USER_ID = "demo-user";
 const INSIGHT_INTERVAL_MS = 10 * 60 * 1000;
 
 const CATEGORY_OPTIONS = [
@@ -79,7 +79,7 @@ export default function NutritionPage() {
 
   async function loadFavorites() {
     try {
-      const res = await fetch(`/api/favorites?username=${USERNAME}`);
+      const res = await fetch(`/api/favorites?userId=${USER_ID}`);
       if (!res.ok) return;
       const data = await res.json();
       const ids = new Set<string>(data.map((f: any) => f.restaurantId));
@@ -106,7 +106,7 @@ export default function NutritionPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username: USERNAME,
+          userId: USER_ID,
           restaurantId: restaurant.id,
           restaurantName: restaurant.name,
           categories: restaurant.categories,
@@ -138,7 +138,7 @@ export default function NutritionPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username: USERNAME,
+          userId: USER_ID,
           restaurantId: restaurant.id,
           restaurantName: restaurant.name,
           action: "view_yelp",
@@ -154,7 +154,7 @@ export default function NutritionPage() {
       await fetch("/api/insights", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: USERNAME }),
+        body: JSON.stringify({ userId: USER_ID }),
       });
     } catch {
       // background task, silently fail

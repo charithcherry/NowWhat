@@ -13,27 +13,27 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
-  const username = request.nextUrl.searchParams.get("username") || "demo-user";
+  const userId = request.nextUrl.searchParams.get("userId") || "demo-user";
 
   try {
     const db = await getDb();
     const favorites = await db
       .collection("favorites")
-      .find({ username })
+      .find({ userId })
       .sort({ timestamp: -1 })
       .toArray();
 
     return NextResponse.json(favorites, { headers: CORS_HEADERS });
   } catch (err: any) {
     console.warn("MongoDB unavailable for favorites GET, using memory:", err.message);
-    const filtered = memoryFavorites.filter((f) => f.username === username);
+    const filtered = memoryFavorites.filter((f) => f.userId === userId);
     return NextResponse.json(filtered, { headers: CORS_HEADERS });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { username = "demo-user", restaurantId, restaurantName, categories, location } =
+    const { userId = "demo-user", restaurantId, restaurantName, categories, location } =
       await request.json();
 
     if (!restaurantId) {
@@ -46,15 +46,15 @@ export async function POST(request: NextRequest) {
     try {
       const db = await getDb();
       const collection = db.collection("favorites");
-      const existing = await collection.findOne({ username, restaurantId });
+      const existing = await collection.findOne({ userId, restaurantId });
 
       if (existing) {
-        await collection.deleteOne({ username, restaurantId });
+        await collection.deleteOne({ userId, restaurantId });
         return NextResponse.json({ action: "removed", restaurantId }, { headers: CORS_HEADERS });
       }
 
       await collection.insertOne({
-        username,
+        userId,
         restaurantId,
         restaurantName,
         categories: categories || [],
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     } catch (dbErr: any) {
       console.warn("MongoDB unavailable for favorites POST, using memory:", dbErr.message);
       const idx = memoryFavorites.findIndex(
-        (f) => f.username === username && f.restaurantId === restaurantId
+        (f) => f.userId === userId && f.restaurantId === restaurantId
       );
 
       if (idx >= 0) {
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       }
 
       memoryFavorites.push({
-        username,
+        userId,
         restaurantId,
         restaurantName,
         categories: categories || [],

@@ -1,5 +1,5 @@
 export interface FavoriteEntry {
-  username: string;
+  userId: string;
   restaurantId: string;
   restaurantName: string;
   categories: any[];
@@ -8,7 +8,7 @@ export interface FavoriteEntry {
 }
 
 export interface ClickEntry {
-  username: string;
+  userId: string;
   restaurantId: string;
   restaurantName: string;
   action: string;

@@ -14,13 +14,13 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
-  const username = request.nextUrl.searchParams.get("username") || "demo-user";
+  const userId = request.nextUrl.searchParams.get("userId") || "demo-user";
 
   try {
     const db = await getDb();
     const insights = await db
       .collection("insights")
-      .find({ username })
+      .find({ userId })
       .sort({ timestamp: -1 })
       .limit(10)
       .toArray();
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { username = "demo-user" } = await request.json();
+    const { userId = "demo-user" } = await request.json();
 
     let favorites: any[] = [];
     let recentClicks: any[] = [];
@@ -51,15 +51,15 @@ export async function POST(request: NextRequest) {
     try {
       const db = await getDb();
       [favorites, recentClicks] = await Promise.all([
-        db.collection("favorites").find({ username }).sort({ timestamp: -1 }).toArray(),
-        db.collection("clicks").find({ username }).sort({ timestamp: -1 }).limit(50).toArray(),
+        db.collection("favorites").find({ userId }).sort({ timestamp: -1 }).toArray(),
+        db.collection("clicks").find({ userId }).sort({ timestamp: -1 }).limit(50).toArray(),
       ]);
       useDb = true;
     } catch (dbErr: any) {
       console.warn("MongoDB unavailable for insights generation, using memory:", dbErr.message);
-      favorites = memoryFavorites.filter((f) => f.username === username);
+      favorites = memoryFavorites.filter((f) => f.userId === userId);
       recentClicks = memoryClicks
-        .filter((c) => c.username === username)
+        .filter((c) => c.userId === userId)
         .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
         .slice(0, 50);
     }
@@ -140,7 +140,7 @@ Write ONLY the insight text, no JSON, no markdown, just plain sentences.`;
       try {
         const db = await getDb();
         await db.collection("insights").insertOne({
-          username,
+          userId,
           insight: insightText,
           timestamp: new Date(),
           favoriteCount: favorites.length,
