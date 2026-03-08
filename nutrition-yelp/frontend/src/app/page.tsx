@@ -133,16 +133,15 @@ export default function NutritionPage() {
   }
 
   async function trackClick(restaurant: Restaurant) {
+    trackActivity("view_yelp", restaurant.id, restaurant.name);
+  }
+
+  async function trackActivity(action: string, restaurantId = "", restaurantName = "", metadata: Record<string, any> = {}) {
     try {
       await fetch("/api/track-click", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: USER_ID,
-          restaurantId: restaurant.id,
-          restaurantName: restaurant.name,
-          action: "view_yelp",
-        }),
+        body: JSON.stringify({ userId: USER_ID, restaurantId, restaurantName, action, metadata }),
       });
     } catch {
       // fire-and-forget
@@ -241,6 +240,14 @@ export default function NutritionPage() {
       const businesses: Restaurant[] = data.businesses || [];
       setRestaurants(businesses);
       setTotalResults(data.total || 0);
+
+      trackActivity("search", "", "", {
+        location: location.trim(),
+        category: category || "all",
+        price: price || "any",
+        sortBy,
+        resultCount: businesses.length,
+      });
 
       if (businesses.length > 0) {
         fetchHealthScores(businesses);

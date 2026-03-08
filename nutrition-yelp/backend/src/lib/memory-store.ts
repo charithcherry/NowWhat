@@ -12,6 +12,7 @@ export interface ClickEntry {
   restaurantId: string;
   restaurantName: string;
   action: string;
+  metadata?: Record<string, any>;
   timestamp: Date;
 }
 

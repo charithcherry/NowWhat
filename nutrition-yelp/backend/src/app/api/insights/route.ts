@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   try {
     const db = await getDb();
     const insights = await db
-      .collection("insights")
+      .collection("yelp-insights")
       .find({ userId })
       .sort({ timestamp: -1 })
       .limit(10)
@@ -71,9 +71,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const searches = recentClicks.filter((c) => c.action === "search");
+    const yelpViews = recentClicks.filter((c) => c.action === "view_yelp");
+
+    const searchLocations = [...new Set(searches.map((s) => s.metadata?.location).filter(Boolean))];
+    const searchCategories = [...new Set(searches.map((s) => s.metadata?.category).filter((c: any) => c && c !== "all"))];
+    const searchCount = searches.length;
+
     const clickCounts: Record<string, { name: string; count: number }> = {};
-    for (const click of recentClicks) {
+    for (const click of yelpViews) {
       const id = click.restaurantId;
+      if (!id) continue;
       if (!clickCounts[id]) {
         clickCounts[id] = { name: click.restaurantName, count: 0 };
       }
@@ -98,11 +106,14 @@ export async function POST(request: NextRequest) {
       .slice(0, 5)
       .map(([cat]) => cat);
 
-    const prompt = `Based on this user's restaurant activity, write 3-4 insightful sentences about their dining preferences and habits. Be specific and personal.
+    const prompt = `Based on this user's restaurant browsing activity, write 3-4 insightful and interesting sentences about their dining preferences, habits, and patterns. Be specific, personal, and include a fun observation.
 
 Liked restaurants: ${favNames.join(", ") || "None"}
-Top categories: ${topCategories.join(", ") || "None"}
-Most clicked (with click count): ${topClicked.map((r) => `${r.name} (${r.count}x)`).join(", ") || "None"}
+Top cuisine categories: ${topCategories.join(", ") || "None"}
+Restaurants clicked to view on Yelp: ${topClicked.map((r) => `${r.name} (${r.count}x)`).join(", ") || "None"}
+Total searches performed: ${searchCount}
+Locations searched: ${searchLocations.join(", ") || "None"}
+Categories browsed: ${searchCategories.join(", ") || "Various"}
 
 Write ONLY the insight text, no JSON, no markdown, just plain sentences.`;
 
@@ -139,12 +150,14 @@ Write ONLY the insight text, no JSON, no markdown, just plain sentences.`;
     if (useDb) {
       try {
         const db = await getDb();
-        await db.collection("insights").insertOne({
+        await db.collection("yelp-insights").insertOne({
           userId,
           insight: insightText,
           timestamp: new Date(),
           favoriteCount: favorites.length,
+          searchCount,
           topCategories,
+          searchLocations,
           topClicked: topClicked.map((r) => r.name),
         });
       } catch {

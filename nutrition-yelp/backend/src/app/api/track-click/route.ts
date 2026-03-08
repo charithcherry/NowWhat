@@ -14,28 +14,24 @@ export async function OPTIONS() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId = "demo-user", restaurantId, restaurantName, action = "click" } =
+    const { userId = "demo-user", restaurantId = "", restaurantName = "", action = "click", metadata = {} } =
       await request.json();
 
-    if (!restaurantId) {
-      return NextResponse.json(
-        { error: "restaurantId is required" },
-        { status: 400, headers: CORS_HEADERS }
-      );
-    }
+    const entry = {
+      userId,
+      restaurantId,
+      restaurantName,
+      action,
+      metadata,
+      timestamp: new Date(),
+    };
 
     try {
       const db = await getDb();
-      await db.collection("clicks").insertOne({
-        userId,
-        restaurantId,
-        restaurantName,
-        action,
-        timestamp: new Date(),
-      });
+      await db.collection("clicks").insertOne(entry);
     } catch (dbErr: any) {
       console.warn("MongoDB unavailable for click tracking, using memory:", dbErr.message);
-      memoryClicks.push({ userId, restaurantId, restaurantName, action, timestamp: new Date() });
+      memoryClicks.push(entry);
     }
 
     return NextResponse.json({ ok: true }, { headers: CORS_HEADERS });
