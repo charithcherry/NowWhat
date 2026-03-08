@@ -1,0 +1,189 @@
+/* Fitness Page Styles - Mobile Responsive */
+
+/* Typography */
+.exercise-title {
+  @apply text-3xl sm:text-4xl font-bold text-doom-text mb-2;
+}
+
+.exercise-subtitle {
+  @apply text-doom-muted text-base sm:text-lg;
+}
+
+/* Controls */
+.controls-container {
+  @apply mt-6 flex flex-wrap gap-3 justify-center sm:justify-start;
+}
+
+.control-button-primary {
+  @apply flex items-center space-x-2 px-6 py-3 bg-doom-primary text-doom-bg rounded-lg font-semibold hover:scale-105 transition-transform shadow-lg;
+}
+
+.control-button-secondary {
+  @apply flex items-center space-x-2 px-6 py-3 bg-doom-secondary text-white rounded-lg font-semibold hover:scale-105 transition-transform shadow-lg;
+}
+
+.control-button-outline {
+  @apply flex items-center space-x-2 px-6 py-3 bg-doom-surface border-2 border-doom-primary/30 text-doom-text rounded-lg font-semibold hover:border-doom-primary hover:bg-doom-bg transition-colors;
+}
+
+.control-button-save {
+  @apply flex items-center space-x-2 px-6 py-3 bg-doom-accent text-doom-bg rounded-lg font-semibold hover:scale-105 transition-transform shadow-lg;
+}
+
+/* Metric Cards */
+.metric-card-primary {
+  @apply p-6 sm:p-8 rounded-xl bg-gradient-to-br from-doom-primary/20 to-doom-accent/20 border-2 border-doom-primary/30 text-center;
+}
+
+.metric-card {
+  @apply p-4 sm:p-6 rounded-xl bg-doom-surface border border-doom-primary/20;
+}
+
+.metric-card-title {
+  @apply text-lg font-semibold text-doom-text mb-4;
+}
+
+.metric-label {
+  @apply text-doom-muted text-sm uppercase tracking-wider mb-2;
+}
+
+.metric-value-large {
+  @apply text-6xl sm:text-7xl font-bold text-doom-primary mb-4;
+}
+
+/* Phase Indicator */
+.phase-indicator {
+  @apply mt-2;
+}
+
+.phase-badge {
+  @apply inline-block px-4 py-2 rounded-full text-sm font-semibold;
+}
+
+.phase-up {
+  @apply bg-doom-primary/20 text-doom-primary;
+}
+
+.phase-down {
+  @apply bg-doom-accent/20 text-doom-accent;
+}
+
+.phase-neutral {
+  @apply bg-doom-muted/20 text-doom-muted;
+}
+
+/* Score Bars */
+.score-label {
+  @apply flex justify-between items-center text-sm text-doom-text mb-2;
+}
+
+.score-number {
+  @apply font-semibold text-doom-primary;
+}
+
+.score-bar-bg {
+  @apply w-full h-2 bg-doom-bg rounded-full overflow-hidden;
+}
+
+.score-bar {
+  @apply h-full rounded-full transition-all duration-300;
+}
+
+.score-bar-primary {
+  @apply bg-doom-primary;
+}
+
+.score-bar-secondary {
+  @apply bg-doom-secondary;
+}
+
+.score-bar-accent {
+  @apply bg-doom-accent;
+}
+
+.score-bar-muted {
+  @apply bg-doom-muted;
+}
+
+/* Angle Display */
+.angle-label {
+  @apply text-doom-muted text-xs uppercase mb-1;
+}
+
+.angle-value {
+  @apply text-2xl sm:text-3xl font-bold text-doom-text;
+}
+
+/* Status Card */
+.status-card {
+  @apply p-4 rounded-xl border-2 flex items-center space-x-3 transition-colors;
+}
+
+.status-valid {
+  @apply bg-doom-primary/10 border-doom-primary;
+}
+
+.status-invalid {
+  @apply bg-doom-secondary/10 border-doom-secondary;
+}
+
+.status-indicator {
+  @apply text-2xl;
+}
+
+.status-text {
+  @apply font-semibold text-doom-text;
+}
+
+/* Feedback Panel */
+.feedback-panel {
+  @apply mt-8 p-4 sm:p-6 rounded-xl bg-doom-surface border border-doom-primary/20;
+}
+
+.feedback-title {
+  @apply text-xl font-semibold text-doom-text mb-4;
+}
+
+.feedback-list {
+  @apply space-y-2;
+}
+
+.feedback-item {
+  @apply p-3 bg-doom-bg rounded-lg text-doom-text text-sm sm:text-base border-l-4 border-doom-primary;
+}
+
+/* Mobile Responsive Utilities */
+@media (max-width: 640px) {
+  .controls-container {
+    @apply flex-col;
+  }
+
+  .controls-container button {
+    @apply w-full justify-center;
+  }
+
+  .metric-value-large {
+    @apply text-5xl;
+  }
+}
+
+/* Tablet Responsive */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .controls-container {
+    @apply grid grid-cols-2 gap-3;
+  }
+}
+
+/* Animation Classes */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}

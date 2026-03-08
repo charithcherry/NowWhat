@@ -1,0 +1,130 @@
+{
+  "name": "WellBeing - Your Wellness Companion",
+  "short_name": "WellBeing",
+  "description": "AI-powered wellness app that builds a unified health profile with exercise tracking, nutrition planning, skin & hair analysis, and more",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0a",
+  "theme_color": "#667eea",
+  "scope": "/",
+  "dir": "ltr",
+  "lang": "en",
+  "categories": ["health", "fitness", "lifestyle", "medical"],
+  "icons": [
+    {
+      "src": "/icons/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/dashboard.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "label": "Dashboard view showing health metrics and insights"
+    },
+    {
+      "src": "/screenshots/exercise-tracking.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "label": "Real-time exercise tracking with form correction"
+    },
+    {
+      "src": "/screenshots/nutrition.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "label": "AI-powered meal planning and nutrition tracking"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Start Workout",
+      "url": "/physical-fitness/exercise-tracker",
+      "description": "Begin a new exercise session",
+      "icons": [
+        {
+          "src": "/icons/workout-96x96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Scan Skin",
+      "url": "/skin-analyst/scan",
+      "description": "Analyze your skin health",
+      "icons": [
+        {
+          "src": "/icons/skin-96x96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Meal Planner",
+      "url": "/nutrition/meal-planner",
+      "description": "Plan your meals based on your workout",
+      "icons": [
+        {
+          "src": "/icons/meal-96x96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "permissions": [
+    "camera",
+    "microphone",
+    "notifications",
+    "storage"
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "features": [
+    "Cross Platform",
+    "fast",
+    "simple",
+    "offline"
+  ]
+}
