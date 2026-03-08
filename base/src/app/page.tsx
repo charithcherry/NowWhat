@@ -437,11 +437,7 @@ export default function Home() {
                 </ul>
 
                 <a
-                  href={
-                    screen.ctaHref.startsWith("http") && user?.userId
-                      ? `${screen.ctaHref}?userId=${user.userId}`
-                      : screen.ctaHref
-                  }
+                  href={screen.ctaHref}
                   className="mt-8 inline-flex items-center gap-2 rounded-xl bg-doom-primary px-6 py-3 font-semibold text-doom-bg transition-transform hover:-translate-y-0.5"
                 >
                   {screen.ctaLabel}

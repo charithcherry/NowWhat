@@ -28,6 +28,11 @@ const ALLOWED_COLLECTIONS: Record<string, string> = {
   "yelp-insights":           "userId",
   wellness_insights:         "user_id",
   userProfiles:              "userId",
+  "community-posts":         "userId",
+  "community-comments":      "userId",
+  "community-moods":         "userId",
+  "community-events":        "attendees",
+  "community-connections":   "fromUserId",
 };
 
 // ── Tool definitions ───────────────────────────────────────────────────────
@@ -63,7 +68,12 @@ const TOOLS = [
                 "'nutrition_profiles' → diet goals and restrictions. " +
                 "'clicks' → restaurant search history. " +
                 "'nutrition_insight_memory' → AI nutrition insights. " +
-                "'yelp-insights' → AI dining insights.",
+                "'yelp-insights' → AI dining insights. " +
+                "'community-posts' → user's community posts. " +
+                "'community-comments' → user's comments. " +
+                "'community-moods' → mood check-ins. " +
+                "'community-events' → events user is attending. " +
+                "'community-connections' → user's connections.",
             },
             limit: {
               type: "integer",

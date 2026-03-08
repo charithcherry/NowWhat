@@ -66,6 +66,11 @@ export async function GET(req: NextRequest) {
       nutritionInsights,
       yelpInsights,
       nutritionSession,
+      communityPosts,
+      communityComments,
+      communityMoods,
+      communityEvents,
+      communityConnections,
     ] = await Promise.all([
       // Identity — always fetch
       objId ? db.collection("users").findOne({ _id: objId }) : null,
@@ -82,6 +87,12 @@ export async function GET(req: NextRequest) {
       db.collection("nutrition_insight_memory").find({ user_id: userId, created_at: { $gte: twoDaysAgo } }).sort({ created_at: -1 }).limit(5).toArray(),
       db.collection("yelp-insights").find({ userId, timestamp: { $gte: twoDaysAgo } }).sort({ timestamp: -1 }).limit(3).toArray(),
       db.collection("nutrition_insight_sessions").findOne({ user_id: userId, started_at: { $gte: twoDaysAgo } }),
+      // Community activity — past 2 days
+      db.collection("community-posts").find({ userId, createdAt: { $gte: twoDaysAgo } }).sort({ createdAt: -1 }).limit(5).toArray(),
+      db.collection("community-comments").find({ userId, createdAt: { $gte: twoDaysAgo } }).sort({ createdAt: -1 }).limit(5).toArray(),
+      db.collection("community-moods").find({ userId, createdAt: { $gte: twoDaysAgo } }).sort({ createdAt: -1 }).limit(5).toArray(),
+      db.collection("community-events").find({ attendees: userId, date: { $gte: new Date().toISOString().split("T")[0] } }).sort({ date: 1 }).limit(5).toArray(),
+      db.collection("community-connections").find({ $or: [{ fromUserId: userId }, { toUserId: userId }] }).sort({ timestamp: -1 }).limit(10).toArray(),
     ]);
 
     // ── Console log all fetched data ──────────────────────────
@@ -98,6 +109,11 @@ export async function GET(req: NextRequest) {
     console.log(`🔍 Searches (${clickHistory.length}):   ${[...new Set(clickHistory.filter((c:any) => c.action==="search" && c.metadata?.category !== "__liked").map((c:any) => c.metadata?.category))].join(", ") || "none"}`);
     console.log(`🧠 Nutrition Insights (${nutritionInsights.length}): ${nutritionInsights.map((n:any) => n.insight_text || n.insight).join(" | ") || "none"}`);
     console.log(`🍽️  Yelp Insights (${yelpInsights.length}): ${yelpInsights.map((y:any) => y.insight).join(" | ") || "none"}`);
+    console.log(`👥 Community Posts (${communityPosts.length}): ${communityPosts.map((p:any) => p.title).join(", ") || "none"}`);
+    console.log(`💬 Community Comments (${communityComments.length})`);
+    console.log(`😊 Community Moods (${communityMoods.length}): ${communityMoods.map((m:any) => `${m.rating}/5`).join(", ") || "none"}`);
+    console.log(`📅 Upcoming Events (${communityEvents.length}): ${communityEvents.map((e:any) => e.title).join(", ") || "none"}`);
+    console.log(`🤝 Connections (${communityConnections.length})`);
     console.log("──────────────────────────────────────────────────────────\n");
 
     // ── Build prompt sections ─────────────────────────────────
@@ -170,6 +186,13 @@ Recipe Tags: ${recipeTags.length > 0 ? recipeTags.join(", ") : "none"}
 ${nutritionSession ? `- Actions taken: ${nutritionSession.action_types?.join(" → ") || "none"}
 - Event count: ${nutritionSession.event_count || 0}
 - Session started: ${nutritionSession.started_at ? new Date(nutritionSession.started_at).toISOString() : "unknown"}` : "- No recent session"}
+
+## COMMUNITY ACTIVITY (past 2 days)
+- Posts shared: ${communityPosts.length > 0 ? communityPosts.map((p:any) => `"${p.title}" [${p.tags?.join(", ")}]`).join("; ") : "none"}
+- Comments made: ${communityComments.length > 0 ? `${communityComments.length} comment(s)` : "none"}
+- Mood check-ins: ${communityMoods.length > 0 ? communityMoods.map((m:any) => `${m.rating}/5${m.note ? ` ("${m.note}")` : ""}`).join(", ") : "none"}
+- Upcoming events attending: ${communityEvents.length > 0 ? communityEvents.map((e:any) => `${e.title} on ${e.date}`).join(", ") : "none"}
+- Connections made: ${communityConnections.length > 0 ? communityConnections.length : "none"}
 
 ## AI-GENERATED INSIGHTS (past 2 days)
 Nutrition Insights: ${nutritionInsights.length > 0 ? nutritionInsights.map((n:any) => n.insight_text || n.insight).join(" ") : "none yet"}

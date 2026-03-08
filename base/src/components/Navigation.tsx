@@ -37,13 +37,7 @@ export function Navigation({ user }: NavigationProps) {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
 
-  // Append userId query param for services that need it
-  const getHref = (item: MenuItem) => {
-    if (item.name === "Community" && user?.userId) {
-      return `${item.href}?userId=${user.userId}`;
-    }
-    return item.href;
-  };
+  const getHref = (item: MenuItem) => item.href;
 
   const handleLogout = async () => {
     try {
