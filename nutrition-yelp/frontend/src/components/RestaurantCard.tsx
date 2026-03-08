@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Star, MapPin, Phone, ExternalLink } from "lucide-react";
+import { Star, MapPin, Phone, ExternalLink, Heart } from "lucide-react";
 
 export interface Restaurant {
   id: string;
@@ -34,6 +34,9 @@ interface RestaurantCardProps {
   restaurant: Restaurant;
   healthScore?: HealthScore;
   index: number;
+  isFavorited?: boolean;
+  onToggleFavorite?: (restaurant: Restaurant) => void;
+  onTrackClick?: (restaurant: Restaurant) => void;
 }
 
 function getScoreColor(score: number): string {
@@ -67,7 +70,7 @@ function renderStars(rating: number) {
   return stars;
 }
 
-export function RestaurantCard({ restaurant, healthScore, index }: RestaurantCardProps) {
+export function RestaurantCard({ restaurant, healthScore, index, isFavorited, onToggleFavorite, onTrackClick }: RestaurantCardProps) {
   const address = restaurant.location.display_address?.join(", ") || "";
   const distanceMiles = restaurant.distance
     ? (restaurant.distance / 1609.34).toFixed(1)
@@ -109,6 +112,24 @@ export function RestaurantCard({ restaurant, healthScore, index }: RestaurantCar
             {restaurant.price}
           </div>
         )}
+
+        {/* Favorite Heart Button */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleFavorite?.(restaurant);
+          }}
+          className="absolute bottom-3 right-3 p-2 rounded-full bg-doom-bg/80 backdrop-blur-sm border border-doom-primary/20 hover:border-doom-primary/50 transition-all hover:scale-110"
+          aria-label={isFavorited ? "Remove from favorites" : "Add to favorites"}
+        >
+          <Heart
+            className={`w-5 h-5 transition-colors ${
+              isFavorited
+                ? "fill-red-500 text-red-500"
+                : "text-doom-muted hover:text-red-400"
+            }`}
+          />
+        </button>
       </div>
 
       {/* Content */}
@@ -192,6 +213,7 @@ export function RestaurantCard({ restaurant, healthScore, index }: RestaurantCar
           href={restaurant.url}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={() => onTrackClick?.(restaurant)}
           className="inline-flex items-center gap-1.5 text-sm text-doom-primary hover:text-doom-accent transition-colors"
         >
           View on Yelp

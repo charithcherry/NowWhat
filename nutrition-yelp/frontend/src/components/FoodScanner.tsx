@@ -3,7 +3,6 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Camera,
   Upload,
   Loader2,
   X,
@@ -62,7 +61,6 @@ export function FoodScanner() {
   const [result, setResult] = useState<ScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -114,7 +112,6 @@ export function FoodScanner() {
     setResult(null);
     setError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
-    if (cameraInputRef.current) cameraInputRef.current.value = "";
   }
 
   const curlReps = result
@@ -133,42 +130,24 @@ export function FoodScanner() {
           animate={{ opacity: 1, y: 0 }}
           className="border-2 border-dashed border-doom-primary/30 rounded-xl p-8 sm:p-12 text-center hover:border-doom-primary/50 transition-colors"
         >
-          <Camera className="w-12 h-12 text-doom-primary/50 mx-auto mb-4" />
+          <Upload className="w-12 h-12 text-doom-primary/50 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-doom-text mb-2">
             Scan Your Food
           </h3>
           <p className="text-doom-muted text-sm mb-6 max-w-md mx-auto">
-            Take a photo or upload an image of your meal to get instant calorie
-            and nutrition estimates powered by AI.
+            Upload an image of your meal to get instant calorie and nutrition
+            estimates powered by AI.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              type="button"
-              onClick={() => cameraInputRef.current?.click()}
-              className="px-6 py-3 bg-doom-primary text-doom-bg font-semibold rounded-lg hover:scale-105 transition-transform flex items-center gap-2 justify-center"
-            >
-              <Camera className="w-5 h-5" />
-              Take Photo
-            </button>
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="px-6 py-3 bg-doom-surface border border-doom-primary/30 text-doom-text font-semibold rounded-lg hover:border-doom-primary/60 transition-colors flex items-center gap-2 justify-center"
-            >
-              <Upload className="w-5 h-5" />
-              Upload Image
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="px-6 py-3 bg-doom-primary text-doom-bg font-semibold rounded-lg hover:scale-105 transition-transform flex items-center gap-2 justify-center mx-auto"
+          >
+            <Upload className="w-5 h-5" />
+            Upload Image
+          </button>
 
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
           <input
             ref={fileInputRef}
             type="file"
@@ -404,7 +383,7 @@ export function FoodScanner() {
                 onClick={clearScan}
                 className="px-6 py-3 bg-doom-surface border border-doom-primary/30 text-doom-text font-semibold rounded-lg hover:border-doom-primary/60 transition-colors inline-flex items-center gap-2"
               >
-                <Camera className="w-5 h-5" />
+                <Upload className="w-5 h-5" />
                 Scan Another Meal
               </button>
             </div>

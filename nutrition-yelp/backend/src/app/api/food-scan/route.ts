@@ -11,7 +11,7 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: CORS_HEADERS });
 }
 
-export interface FoodScanResult {
+interface FoodScanResult {
   foods: {
     name: string;
     portion: string;

@@ -1,13 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, MapPin, Loader2, Apple, SlidersHorizontal, X, LocateFixed, Camera, UtensilsCrossed } from "lucide-react";
+import { Search, MapPin, Loader2, Apple, SlidersHorizontal, X, LocateFixed, Camera, UtensilsCrossed, Heart } from "lucide-react";
 import { RestaurantCard, type Restaurant, type HealthScore } from "@/components/RestaurantCard";
 import { FoodScanner } from "@/components/FoodScanner";
 
+const USERNAME = "demo-user";
+const INSIGHT_INTERVAL_MS = 10 * 60 * 1000;
+
 const CATEGORY_OPTIONS = [
   { value: "", label: "All Restaurants" },
+  { value: "__liked", label: "Liked Restaurants \u2764\uFE0F" },
   { value: "healthfood", label: "Health Food" },
   { value: "salad", label: "Salads" },
   { value: "vegan", label: "Vegan" },
@@ -59,6 +63,103 @@ export default function NutritionPage() {
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [detectingLocation, setDetectingLocation] = useState(false);
+
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const insightTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    loadFavorites();
+
+    generateInsights();
+    insightTimerRef.current = setInterval(generateInsights, INSIGHT_INTERVAL_MS);
+    return () => {
+      if (insightTimerRef.current) clearInterval(insightTimerRef.current);
+    };
+  }, []);
+
+  async function loadFavorites() {
+    try {
+      const res = await fetch(`/api/favorites?username=${USERNAME}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const ids = new Set<string>(data.map((f: any) => f.restaurantId));
+      setFavoriteIds(ids);
+    } catch (err) {
+      console.error("Failed to load favorites:", err);
+    }
+  }
+
+  async function toggleFavorite(restaurant: Restaurant) {
+    const wasLiked = favoriteIds.has(restaurant.id);
+    setFavoriteIds((prev) => {
+      const next = new Set(prev);
+      if (wasLiked) {
+        next.delete(restaurant.id);
+      } else {
+        next.add(restaurant.id);
+      }
+      return next;
+    });
+
+    try {
+      const res = await fetch("/api/favorites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: USERNAME,
+          restaurantId: restaurant.id,
+          restaurantName: restaurant.name,
+          categories: restaurant.categories,
+          location: restaurant.location.display_address?.join(", ") || "",
+        }),
+      });
+      if (!res.ok) {
+        setFavoriteIds((prev) => {
+          const next = new Set(prev);
+          if (wasLiked) next.add(restaurant.id);
+          else next.delete(restaurant.id);
+          return next;
+        });
+      }
+    } catch (err) {
+      console.error("Failed to toggle favorite:", err);
+      setFavoriteIds((prev) => {
+        const next = new Set(prev);
+        if (wasLiked) next.add(restaurant.id);
+        else next.delete(restaurant.id);
+        return next;
+      });
+    }
+  }
+
+  async function trackClick(restaurant: Restaurant) {
+    try {
+      await fetch("/api/track-click", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: USERNAME,
+          restaurantId: restaurant.id,
+          restaurantName: restaurant.name,
+          action: "view_yelp",
+        }),
+      });
+    } catch {
+      // fire-and-forget
+    }
+  }
+
+  async function generateInsights() {
+    try {
+      await fetch("/api/insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: USERNAME }),
+      });
+    } catch {
+      // background task, silently fail
+    }
+  }
 
   async function detectLocation() {
     setDetectingLocation(true);
@@ -126,7 +227,7 @@ export default function NutritionPage() {
       params.set("sort_by", sortBy);
       params.set("limit", "20");
 
-      if (category) params.set("categories", category);
+      if (category && category !== "__liked") params.set("categories", category);
       if (price) params.set("price", price);
 
       const res = await fetch(`/api/yelp?${params.toString()}`);
@@ -187,7 +288,7 @@ export default function NutritionPage() {
     <main className="min-h-screen bg-doom-bg">
       {/* Hero */}
       <div className="bg-gradient-doom border-b border-doom-primary/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+        <div className="max-w-[95%] mx-auto px-4 sm:px-6 py-12 sm:py-16">
           <div className="text-center">
             <div className="inline-flex items-center gap-2 mb-4">
               <Apple className="w-8 h-8 text-green-400" />
@@ -207,7 +308,7 @@ export default function NutritionPage() {
       </div>
 
       {/* Tabs */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 mb-6">
+      <div className="max-w-[95%] mx-auto px-4 sm:px-6 -mt-6 mb-6">
         <div className="flex gap-2 bg-doom-surface rounded-xl border border-doom-primary/20 p-1.5">
           <button
             onClick={() => setActiveTab("restaurants")}
@@ -236,14 +337,14 @@ export default function NutritionPage() {
 
       {/* Scanner Tab */}
       {activeTab === "scanner" && (
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-8">
           <FoodScanner />
         </div>
       )}
 
       {/* Restaurant Search Tab */}
       {activeTab === "restaurants" && <>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[95%] mx-auto px-4 sm:px-6">
         <div className="bg-doom-surface rounded-xl border border-doom-primary/20 p-4 sm:p-6 shadow-lg shadow-black/20">
           <form onSubmit={searchRestaurants}>
             <div className="flex flex-col sm:flex-row gap-3">
@@ -368,7 +469,7 @@ export default function NutritionPage() {
       </div>
 
       {/* Results */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-[95%] mx-auto px-4 sm:px-6 py-8">
         {error && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -405,18 +506,35 @@ export default function NutritionPage() {
           </div>
         )}
 
-        {!isLoading && restaurants.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {restaurants.map((restaurant, index) => (
-              <RestaurantCard
-                key={restaurant.id}
-                restaurant={restaurant}
-                healthScore={healthScores[restaurant.id]}
-                index={index}
-              />
-            ))}
-          </div>
-        )}
+        {!isLoading && restaurants.length > 0 && (() => {
+          const displayList = category === "__liked"
+            ? restaurants.filter((r) => favoriteIds.has(r.id))
+            : restaurants;
+
+          return displayList.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {displayList.map((restaurant, index) => (
+                <RestaurantCard
+                  key={restaurant.id}
+                  restaurant={restaurant}
+                  healthScore={healthScores[restaurant.id]}
+                  index={index}
+                  isFavorited={favoriteIds.has(restaurant.id)}
+                  onToggleFavorite={toggleFavorite}
+                  onTrackClick={trackClick}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16">
+              <Heart className="w-12 h-12 text-doom-muted/30 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-doom-text mb-2">No liked restaurants</h3>
+              <p className="text-doom-muted">
+                Like some restaurants first by clicking the heart icon, then filter by liked.
+              </p>
+            </div>
+          );
+        })()}
 
         {!isLoading && hasSearched && restaurants.length === 0 && !error && (
           <div className="text-center py-16">

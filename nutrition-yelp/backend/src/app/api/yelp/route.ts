@@ -95,7 +95,6 @@ export async function GET(request: NextRequest) {
         zip_code: b.location?.zip_code,
         display_address: b.location?.display_address,
       },
-      coordinates: b.coordinates,
       is_closed: b.is_closed,
       distance: b.distance,
     }));
