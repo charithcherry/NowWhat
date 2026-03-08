@@ -1,11 +1,20 @@
 import { Navigation } from "@/components/Navigation";
 import { SkinHairPage } from "@/modules/skin-hair/ui/SkinHairPage";
+import { getCurrentUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
-export default function Page() {
+export default async function Page() {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    // Redirect to base app login page
+    redirect("http://localhost:3000");
+  }
+
   return (
     <>
-      <Navigation />
-      <SkinHairPage />
+      <Navigation user={user} />
+      <SkinHairPage userId={user.userId} userName={user.name} />
     </>
   );
 }

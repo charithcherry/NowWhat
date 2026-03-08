@@ -2,20 +2,50 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, Dumbbell, Apple, Droplet, Moon, Pill, Activity } from "lucide-react";
+import { Menu, X, Dumbbell, Apple, Droplet, Moon, Pill, Activity, UserRound, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import type { LucideIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 
-const menuItems = [
+interface MenuItem {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+  color: string;
+  external?: boolean;
+}
+
+interface AuthUser {
+  userId: string;
+  email: string;
+  name: string;
+}
+
+interface NavigationProps {
+  user?: AuthUser | null;
+}
+
+const menuItems: MenuItem[] = [
   { name: "Physical Fitness", href: "/fitness", icon: Dumbbell, color: "text-doom-primary" },
   { name: "Nutrition", href: "/nutrition", icon: Apple, color: "text-green-400" },
-  { name: "Skin Analysis", href: "/skin", icon: Droplet, color: "text-blue-400" },
-  { name: "Hair Analysis", href: "/hair", icon: Activity, color: "text-purple-400" },
+  { name: "Skin & Hair Analysis", href: "http://localhost:3002", icon: Droplet, color: "text-blue-400", external: true },
   { name: "Sleep Tracking", href: "/sleep", icon: Moon, color: "text-indigo-400" },
   { name: "Supplements", href: "/supplements", icon: Pill, color: "text-orange-400" },
 ];
 
-export function Navigation() {
+export function Navigation({ user }: NavigationProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      // Force full page reload to clear all state and redirect
+      window.location.href = "/";
+    } catch (err) {
+      console.error("Logout failed:", err);
+    }
+  };
 
   return (
     <>
@@ -37,6 +67,18 @@ export function Navigation() {
             <div className="hidden md:flex items-center space-x-6">
               {menuItems.map((item) => {
                 const Icon = item.icon;
+                if (item.external) {
+                  return (
+                    <a
+                      key={item.name}
+                      href={item.href}
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-doom-bg/50 transition-colors ${item.color}`}
+                    >
+                      <Icon className="w-5 h-5" />
+                      <span className="text-sm font-medium text-doom-text">{item.name}</span>
+                    </a>
+                  );
+                }
                 return (
                   <Link
                     key={item.name}
@@ -48,6 +90,32 @@ export function Navigation() {
                   </Link>
                 );
               })}
+
+              {/* Profile and Logout Section - Desktop Only */}
+              {user && (
+                <>
+                  {/* Divider */}
+                  <div className="h-8 w-px bg-doom-primary/30" />
+
+                  {/* Profile Section */}
+                  <div className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-doom-bg/30">
+                    <UserRound className="w-5 h-5 text-doom-primary" />
+                    <span className="text-sm font-medium text-doom-text">{user.name}</span>
+                  </div>
+
+                  {/* Logout Button */}
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-red-500/10 transition-colors group"
+                    aria-label="Logout"
+                  >
+                    <LogOut className="w-5 h-5 text-red-400 group-hover:text-red-300 transition-colors" />
+                    <span className="text-sm font-medium text-red-400 group-hover:text-red-300 transition-colors">
+                      Logout
+                    </span>
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Hamburger Button - Mobile Only */}
@@ -110,29 +178,69 @@ export function Navigation() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
                     >
-                      <Link
-                        href={item.href}
-                        onClick={() => setIsOpen(false)}
-                        className={`flex items-center space-x-4 p-4 rounded-lg hover:bg-doom-bg/50 transition-colors group ${item.color}`}
-                      >
-                        <div className="p-2 rounded-lg bg-doom-bg/50 group-hover:scale-110 transition-transform">
-                          <Icon className="w-6 h-6" />
-                        </div>
-                        <span className="text-base font-medium text-doom-text">
-                          {item.name}
-                        </span>
-                      </Link>
+                      {item.external ? (
+                        <a
+                          href={item.href}
+                          onClick={() => setIsOpen(false)}
+                          className={`flex items-center space-x-4 p-4 rounded-lg hover:bg-doom-bg/50 transition-colors group ${item.color}`}
+                        >
+                          <div className="p-2 rounded-lg bg-doom-bg/50 group-hover:scale-110 transition-transform">
+                            <Icon className="w-6 h-6" />
+                          </div>
+                          <span className="text-base font-medium text-doom-text">
+                            {item.name}
+                          </span>
+                        </a>
+                      ) : (
+                        <Link
+                          href={item.href}
+                          onClick={() => setIsOpen(false)}
+                          className={`flex items-center space-x-4 p-4 rounded-lg hover:bg-doom-bg/50 transition-colors group ${item.color}`}
+                        >
+                          <div className="p-2 rounded-lg bg-doom-bg/50 group-hover:scale-110 transition-transform">
+                            <Icon className="w-6 h-6" />
+                          </div>
+                          <span className="text-base font-medium text-doom-text">
+                            {item.name}
+                          </span>
+                        </Link>
+                      )}
                     </motion.div>
                   );
                 })}
               </div>
 
-              {/* Menu Footer */}
+              {/* Menu Footer - Profile & Logout for Mobile */}
               <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-doom-primary/20">
-                <div className="text-center text-sm text-doom-muted">
-                  <p>Your Complete Health</p>
-                  <p className="text-doom-primary">Companion</p>
-                </div>
+                {user ? (
+                  <div className="space-y-3">
+                    {/* Profile Info */}
+                    <div className="flex items-center space-x-3 p-3 rounded-lg bg-doom-bg/30">
+                      <UserRound className="w-5 h-5 text-doom-primary" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-doom-text">{user.name}</p>
+                        <p className="text-xs text-doom-muted">{user.email}</p>
+                      </div>
+                    </div>
+
+                    {/* Logout Button */}
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setIsOpen(false);
+                      }}
+                      className="w-full flex items-center justify-center space-x-2 p-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 transition-colors"
+                    >
+                      <LogOut className="w-5 h-5 text-red-400" />
+                      <span className="text-sm font-medium text-red-400">Logout</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-center text-sm text-doom-muted">
+                    <p>Your Complete Health</p>
+                    <p className="text-doom-primary">Companion</p>
+                  </div>
+                )}
               </div>
             </motion.div>
           </>

@@ -49,7 +49,7 @@ export function RecommendationsSection({
 
           <div className="space-y-3 mt-5">
             {recommendations.length === 0 ? (
-              <p className="text-sm text-doom-muted">No recommendations yet. Save profile and loved products first.</p>
+              <p className="text-base text-doom-muted">No recommendations yet. Save profile and loved products first.</p>
             ) : (
               recommendations.map((recommendation) => {
                 const alreadySaved = lovedProducts.some(
@@ -65,8 +65,8 @@ export function RecommendationsSection({
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <p className="font-semibold text-doom-text">{recommendation.product_name}</p>
-                        <p className="text-sm text-doom-muted">
+                        <p className="font-semibold text-lg text-doom-text">{recommendation.product_name}</p>
+                        <p className="text-base text-doom-muted">
                           {recommendation.brand} - {recommendation.category}
                         </p>
                       </div>
@@ -83,16 +83,16 @@ export function RecommendationsSection({
                       </div>
                     </div>
 
-                    <p className="text-sm text-doom-text mt-3">
+                    <p className="text-base text-doom-text mt-3">
                       Result: {recommendation.product_name} appears compatible with your current product fingerprint.
                     </p>
-                    <p className="text-sm text-doom-muted mt-1">Why it fits: {recommendation.recommendation_reason}</p>
-                    <p className="text-xs text-doom-accent mt-1">Confidence: {recommendation.confidence}</p>
+                    <p className="text-base text-doom-muted mt-1">Why it fits: {recommendation.recommendation_reason}</p>
+                    <p className="text-sm text-doom-accent mt-1">Confidence: {recommendation.confidence}</p>
                     {recommendation.recommendation_source ? (
-                      <p className="text-xs text-doom-muted mt-1">Source: {recommendation.recommendation_source}</p>
+                      <p className="text-sm text-doom-muted mt-1">Source: {recommendation.recommendation_source}</p>
                     ) : null}
                     {recommendation.product_url ? (
-                      <p className="text-xs text-doom-muted mt-1">
+                      <p className="text-sm text-doom-muted mt-1">
                         <a
                           href={recommendation.product_url}
                           target="_blank"
@@ -125,7 +125,7 @@ export function RecommendationsSection({
                       </div>
                     ) : null}
 
-                    <p className="text-xs text-doom-muted mt-3">{recommendation.grounding_line}</p>
+                    <p className="text-sm text-doom-muted mt-3">{recommendation.grounding_line}</p>
                   </div>
                 );
               })

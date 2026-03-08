@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ArrowRight,
   Dumbbell,
   Droplets,
   Scissors,
   UtensilsCrossed,
+  LogOut,
+  User,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Manrope, Space_Grotesk } from "next/font/google";
@@ -90,7 +92,7 @@ const featureScreens: FeatureScreen[] = [
     mediaSrc: "/assets/skincare.mp4",
     mediaAlt: "Skin analysis feature walkthrough",
     icon: Droplets,
-    ctaHref: "/skin",
+    ctaHref: "http://localhost:3002",
     ctaLabel: "Analyse Your Skin",
   },
   {
@@ -108,17 +110,231 @@ const featureScreens: FeatureScreen[] = [
     mediaSrc: "/assets/haircare.jpg",
     mediaAlt: "Haircare analysis preview",
     icon: Scissors,
-    ctaHref: "/hair",
+    ctaHref: "http://localhost:3002",
     ctaLabel: "Analyse Your Hair",
   },
 ];
 
+interface AuthUser {
+  userId: string;
+  email: string;
+  name: string;
+}
+
 export default function Home() {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [loading, setLoading] = useState(true);
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+    name: "",
+  });
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
+  // Check if user is logged in
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch("/api/auth/me");
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data.user);
+        }
+      } catch (err) {
+        console.error("Auth check failed:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSubmitting(true);
+
+    try {
+      const endpoint = authMode === "login" ? "/api/auth/login" : "/api/auth/register";
+      const body = authMode === "login"
+        ? { email: formData.email, password: formData.password }
+        : formData;
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setUser(data.user);
+        setFormData({ email: "", password: "", name: "" });
+      } else {
+        setError(data.error || "Authentication failed");
+      }
+    } catch (err) {
+      setError("Network error. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      // Force full page reload to clear state and show login
+      window.location.reload();
+    } catch (err) {
+      console.error("Logout failed:", err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-doom-bg">
+        <div className="text-doom-primary text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  // If not logged in, show auth forms
+  if (!user) {
+    return (
+      <>
+        <Navigation user={user} />
+        <div
+          className={`min-h-screen bg-doom-bg flex items-center justify-center px-4 ${bodyFont.className}`}
+          style={{ paddingTop: "4rem" }}
+        >
+          <div className="max-w-md w-full">
+            <div className="bg-doom-surface border border-doom-primary/20 rounded-2xl p-8 shadow-2xl">
+              {/* Header */}
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-doom-primary to-doom-accent rounded-xl mb-4">
+                  <User className="w-8 h-8 text-doom-bg" />
+                </div>
+                <h1 className={`${headingFont.className} text-3xl font-bold text-doom-text mb-2`}>
+                  Welcome to WellBeing
+                </h1>
+                <p className="text-doom-muted">
+                  {authMode === "login" ? "Sign in to continue" : "Create your account"}
+                </p>
+              </div>
+
+              {/* Auth Mode Toggle */}
+              <div className="flex gap-2 mb-6 bg-doom-bg rounded-lg p-1">
+                <button
+                  onClick={() => {
+                    setAuthMode("login");
+                    setError("");
+                  }}
+                  className={`flex-1 py-2 px-4 rounded-md font-medium transition-all ${
+                    authMode === "login"
+                      ? "bg-doom-primary text-doom-bg"
+                      : "text-doom-muted hover:text-doom-text"
+                  }`}
+                >
+                  Login
+                </button>
+                <button
+                  onClick={() => {
+                    setAuthMode("register");
+                    setError("");
+                  }}
+                  className={`flex-1 py-2 px-4 rounded-md font-medium transition-all ${
+                    authMode === "register"
+                      ? "bg-doom-primary text-doom-bg"
+                      : "text-doom-muted hover:text-doom-text"
+                  }`}
+                >
+                  Register
+                </button>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {authMode === "register" && (
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-doom-text mb-2">
+                      Name
+                    </label>
+                    <input
+                      id="name"
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-4 py-3 bg-doom-bg border border-doom-primary/20 rounded-lg text-doom-text placeholder-doom-muted focus:outline-none focus:border-doom-primary transition-colors"
+                      placeholder="Enter your name"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-doom-text mb-2">
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full px-4 py-3 bg-doom-bg border border-doom-primary/20 rounded-lg text-doom-text placeholder-doom-muted focus:outline-none focus:border-doom-primary transition-colors"
+                    placeholder="Enter your email"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-doom-text mb-2">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    required
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full px-4 py-3 bg-doom-bg border border-doom-primary/20 rounded-lg text-doom-text placeholder-doom-muted focus:outline-none focus:border-doom-primary transition-colors"
+                    placeholder="Enter your password"
+                    minLength={6}
+                  />
+                  {authMode === "register" && (
+                    <p className="text-xs text-doom-muted mt-1">Minimum 6 characters</p>
+                  )}
+                </div>
+
+                {error && (
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full py-3 px-4 bg-doom-primary text-doom-bg font-semibold rounded-lg hover:bg-doom-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? "Please wait..." : authMode === "login" ? "Sign In" : "Create Account"}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // If logged in, show feature carousel
   return (
     <>
-      <Navigation />
+      <Navigation user={user} />
       <div
         className={`home-slider ${bodyFont.className}`}
         style={{ height: "calc(100vh - 4rem)", top: "4rem" }}

@@ -16,6 +16,7 @@ import {
   SESSION_MESSAGES,
   VOICE_FEEDBACK_SETTINGS
 } from "@/lib/voice";
+import { useAuth } from "@/hooks/useAuth";
 import "./fitness.css";
 
 type ExerciseType = 'bicep-curl' | 'lateral-raises';
@@ -24,6 +25,7 @@ type ExerciseType = 'bicep-curl' | 'lateral-raises';
 type ExerciseMetrics = BicepCurlMetrics | LateralRaisesMetrics;
 
 export default function FitnessPage() {
+  const { user } = useAuth();
   const [selectedExercise, setSelectedExercise] = useState<ExerciseType>('bicep-curl');
   const [isExerciseActive, setIsExerciseActive] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
@@ -579,7 +581,7 @@ export default function FitnessPage() {
 
   return (
     <>
-      {!isExerciseActive && <Navigation />}
+      {!isExerciseActive && <Navigation user={user} />}
 
       <main className={`min-h-screen bg-doom-bg ${!isExerciseActive ? 'pt-16' : 'pt-0'} pb-8 max-w-full overflow-x-hidden`}>
         <div className="px-3 sm:px-4 py-4 pb-8 max-w-full">

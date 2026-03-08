@@ -50,17 +50,17 @@ export function WellnessInsightsSection({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-5">
             {insights.length === 0 ? (
-              <p className="text-sm text-doom-muted">No insight cards yet. Analyze skin/hair first, then refresh insights.</p>
+              <p className="text-base text-doom-muted">No insight cards yet. Analyze skin/hair first, then refresh insights.</p>
             ) : (
               insights.map((insight) => (
                 <div key={insight._id || insight.insight_type} className="rounded-lg border border-doom-primary/20 bg-doom-bg/40 p-4">
-                  <p className="font-semibold text-doom-text">{INSIGHT_LABELS[insight.insight_type] || "Wellness pattern"}</p>
-                  <p className="text-sm text-doom-text mt-2">Result: {insight.message}</p>
-                  <p className="text-sm text-doom-muted mt-1">
+                  <p className="font-semibold text-lg text-doom-text">{INSIGHT_LABELS[insight.insight_type] || "Wellness pattern"}</p>
+                  <p className="text-base text-doom-text mt-2">Result: {insight.message}</p>
+                  <p className="text-base text-doom-muted mt-1">
                     Why it fits: Signals observed across {insight.related_signals.join(", ")}. This is observational only.
                   </p>
-                  <p className="text-xs text-doom-accent mt-1">Confidence: {insight.confidence}</p>
-                  <p className="text-xs text-doom-muted mt-2">{insight.grounding_line}</p>
+                  <p className="text-sm text-doom-accent mt-1">Confidence: {insight.confidence}</p>
+                  <p className="text-sm text-doom-muted mt-2">{insight.grounding_line}</p>
                 </div>
               ))
             )}

@@ -21,23 +21,23 @@ interface AnalysisTargetCardProps {
 function ResultCard({ title, result }: { title: string; result: AnalysisPayload }) {
   return (
     <div className="rounded-lg border border-doom-primary/20 bg-doom-bg/40 p-4 space-y-2">
-      <h4 className="text-doom-text font-semibold">{title}</h4>
-      {typeof result.dryness_score === "number" && <p className="text-sm">Dryness score: {result.dryness_score}</p>}
-      {typeof result.oiliness_score === "number" && <p className="text-sm">Oiliness score: {result.oiliness_score}</p>}
+      <h4 className="text-lg text-doom-text font-semibold">{title}</h4>
+      {typeof result.dryness_score === "number" && <p className="text-base">Dryness score: {result.dryness_score}</p>}
+      {typeof result.oiliness_score === "number" && <p className="text-base">Oiliness score: {result.oiliness_score}</p>}
       {typeof result.acne_like_appearance_score === "number" && (
-        <p className="text-sm">Acne-like appearance score: {result.acne_like_appearance_score}</p>
+        <p className="text-base">Acne-like appearance score: {result.acne_like_appearance_score}</p>
       )}
-      {typeof result.dark_circles_score === "number" && <p className="text-sm">Dark circles score: {result.dark_circles_score}</p>}
-      {typeof result.scalp_dryness_score === "number" && <p className="text-sm">Scalp dryness score: {result.scalp_dryness_score}</p>}
+      {typeof result.dark_circles_score === "number" && <p className="text-base">Dark circles score: {result.dark_circles_score}</p>}
+      {typeof result.scalp_dryness_score === "number" && <p className="text-base">Scalp dryness score: {result.scalp_dryness_score}</p>}
       {typeof result.dandruff_like_flaking_score === "number" && (
-        <p className="text-sm">Dandruff-like flaking score: {result.dandruff_like_flaking_score}</p>
+        <p className="text-base">Dandruff-like flaking score: {result.dandruff_like_flaking_score}</p>
       )}
       {typeof result.thinning_appearance_score === "number" && (
-        <p className="text-sm">Thinning appearance score: {result.thinning_appearance_score}</p>
+        <p className="text-base">Thinning appearance score: {result.thinning_appearance_score}</p>
       )}
-      <p className="text-sm text-doom-muted">{result.brief_observation}</p>
-      <p className="text-xs text-doom-accent">Confidence: {result.confidence}</p>
-      <p className="text-xs text-doom-muted">{result.grounding_line}</p>
+      <p className="text-base text-doom-muted">{result.brief_observation}</p>
+      <p className="text-sm text-doom-accent">Confidence: {result.confidence}</p>
+      <p className="text-sm text-doom-muted">{result.grounding_line}</p>
     </div>
   );
 }
@@ -172,10 +172,10 @@ function AnalysisTargetCard({ title, target, result, analyzingTarget, onAnalyze 
 
   return (
     <div className="rounded-lg border border-doom-primary/20 bg-doom-bg/40 p-4 space-y-3">
-      <p className="font-semibold">{title}</p>
+      <p className="font-semibold text-lg">{title}</p>
 
       <div className="space-y-2">
-        <label className="text-xs text-doom-muted">Upload image</label>
+        <label className="text-sm text-doom-muted">Upload image</label>
         <input
           className="input-field"
           type="file"
@@ -193,7 +193,7 @@ function AnalysisTargetCard({ title, target, result, analyzingTarget, onAnalyze 
       </div>
 
       <div className="space-y-2">
-        <label className="text-xs text-doom-muted">Phone camera capture (mobile browsers)</label>
+        <label className="text-sm text-doom-muted">Phone camera capture (mobile browsers)</label>
         <input
           className="input-field"
           type="file"
@@ -239,7 +239,7 @@ function AnalysisTargetCard({ title, target, result, analyzingTarget, onAnalyze 
           />
         ) : null}
 
-        {cameraError ? <p className="text-xs text-red-300">{cameraError}</p> : null}
+        {cameraError ? <p className="text-sm text-red-300">{cameraError}</p> : null}
       </div>
 
       {result ? <ResultCard title={`${title} result`} result={result} /> : null}

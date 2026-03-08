@@ -33,6 +33,15 @@ const nextConfig = {
   images: {
     domains: ['localhost'],
   },
+  // Proxy rewrites for microservices
+  async rewrites() {
+    return [
+      {
+        source: '/skin/:path*',
+        destination: 'http://localhost:3002/:path*',
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

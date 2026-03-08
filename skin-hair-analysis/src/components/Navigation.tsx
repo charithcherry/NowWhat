@@ -2,34 +2,70 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Menu, X, Droplet, Activity, Sparkles, HeartPulse, PackageSearch, UserRound } from "lucide-react";
+import { Menu, X, Droplet, Home, UserRound, LogOut } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
+interface User {
+  userId: string;
+  email: string;
+  name?: string;
+}
+
+interface NavigationProps {
+  user?: User;
+}
+
 const menuItems = [
-  { name: "Overview", href: "#overview", icon: Sparkles, color: "text-doom-primary" },
-  { name: "Profile", href: "#profile", icon: UserRound, color: "text-doom-accent" },
-  { name: "Analysis", href: "#analysis", icon: Droplet, color: "text-blue-400" },
-  { name: "Products", href: "#products", icon: PackageSearch, color: "text-orange-400" },
-  { name: "Insights", href: "#insights", icon: HeartPulse, color: "text-green-400" },
-  { name: "Recommendations", href: "#recommendations", icon: Activity, color: "text-purple-400" },
+  { name: "Home", href: "http://localhost:3000", icon: Home, color: "text-doom-primary" },
+  { name: "Profile", href: "/profile", icon: UserRound, color: "text-doom-accent" },
 ];
 
-export function Navigation() {
+export function Navigation({ user }: NavigationProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      // Call logout API
+      await fetch("http://localhost:3000/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (error) {
+      console.error("Logout API failed:", error);
+    } finally {
+      // Always redirect to base homepage, even if API fails
+      // This ensures cookies are cleared and user sees login page
+      window.location.href = "http://localhost:3000";
+    }
+  };
 
   return (
     <>
+      {/* Top Navigation Bar - Mobile Responsive */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-doom-surface/95 backdrop-blur-sm border-b border-doom-primary/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="px-2">
           <div className="flex items-center justify-between h-16">
-            <Link href="#overview" className="flex items-center space-x-2">
+            {/* Logo */}
+            <Link href="http://localhost:3000" className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-gradient-to-br from-doom-primary to-doom-accent rounded-lg flex items-center justify-center">
                 <Droplet className="w-5 h-5 text-doom-bg" />
               </div>
-              <span className="text-xl font-bold text-doom-text hidden sm:block">Skin & Hair</span>
+              <span className="text-xl font-bold text-doom-text hidden sm:block">
+                Skin & Hair
+              </span>
             </Link>
 
-            <div className="hidden md:flex items-center space-x-5">
+            {/* Desktop Menu */}
+            <div className="hidden md:flex items-center space-x-6">
+              {/* User Greeting */}
+              {user && (
+                <span className="text-sm text-doom-primary font-medium">
+                  Hi, {user.name}
+                </span>
+              )}
+
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -38,35 +74,56 @@ export function Navigation() {
                     href={item.href}
                     className={`flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-doom-bg/50 transition-colors ${item.color}`}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className="w-5 h-5" />
                     <span className="text-sm font-medium text-doom-text">{item.name}</span>
                   </a>
                 );
               })}
+
+              {/* Logout Button */}
+              <button
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-red-500/10 transition-colors group disabled:opacity-50"
+                aria-label="Logout"
+              >
+                <LogOut className="w-5 h-5 text-red-400 group-hover:text-red-300 transition-colors" />
+                <span className="text-sm font-medium text-red-400 group-hover:text-red-300 transition-colors">
+                  {isLoggingOut ? "Logging out..." : "Logout"}
+                </span>
+              </button>
             </div>
 
+            {/* Hamburger Button - Mobile Only */}
             <button
-              onClick={() => setIsOpen((prev) => !prev)}
+              onClick={() => setIsOpen(!isOpen)}
               className="md:hidden p-2 rounded-lg hover:bg-doom-bg/50 transition-colors"
               aria-label="Toggle menu"
             >
-              {isOpen ? <X className="w-6 h-6 text-doom-primary" /> : <Menu className="w-6 h-6 text-doom-primary" />}
+              {isOpen ? (
+                <X className="w-6 h-6 text-doom-primary" />
+              ) : (
+                <Menu className="w-6 h-6 text-doom-primary" />
+              )}
             </button>
           </div>
         </div>
       </nav>
 
+      {/* Mobile Menu Overlay */}
       <AnimatePresence>
         {isOpen && (
           <>
+            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
               onClick={() => setIsOpen(false)}
+              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
             />
 
+            {/* Slide-in Menu */}
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
@@ -74,8 +131,9 @@ export function Navigation() {
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="fixed top-0 right-0 bottom-0 z-50 w-80 max-w-[85vw] bg-doom-surface border-l border-doom-primary/20 md:hidden overflow-y-auto"
             >
+              {/* Menu Header */}
               <div className="flex items-center justify-between p-6 border-b border-doom-primary/20">
-                <h2 className="text-xl font-bold text-doom-text">Skin & Hair</h2>
+                <h2 className="text-xl font-bold text-doom-text">Menu</h2>
                 <button
                   onClick={() => setIsOpen(false)}
                   className="p-2 rounded-lg hover:bg-doom-bg/50 transition-colors"
@@ -85,6 +143,7 @@ export function Navigation() {
                 </button>
               </div>
 
+              {/* Menu Items */}
               <div className="p-4 space-y-2">
                 {menuItems.map((item, index) => {
                   const Icon = item.icon;
@@ -103,11 +162,49 @@ export function Navigation() {
                         <div className="p-2 rounded-lg bg-doom-bg/50 group-hover:scale-110 transition-transform">
                           <Icon className="w-6 h-6" />
                         </div>
-                        <span className="text-base font-medium text-doom-text">{item.name}</span>
+                        <span className="text-base font-medium text-doom-text">
+                          {item.name}
+                        </span>
                       </a>
                     </motion.div>
                   );
                 })}
+              </div>
+
+              {/* Menu Footer - Logout for Mobile */}
+              <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-doom-primary/20">
+                {user ? (
+                  <div className="space-y-3">
+                    {/* Profile Info */}
+                    <div className="flex items-center space-x-3 p-3 rounded-lg bg-doom-bg/30">
+                      <UserRound className="w-5 h-5 text-doom-primary" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-doom-text">{user.name}</p>
+                        <p className="text-xs text-doom-muted">{user.email}</p>
+                      </div>
+                    </div>
+
+                    {/* Logout Button */}
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setIsOpen(false);
+                      }}
+                      disabled={isLoggingOut}
+                      className="w-full flex items-center justify-center space-x-2 p-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                    >
+                      <LogOut className="w-5 h-5 text-red-400" />
+                      <span className="text-sm font-medium text-red-400">
+                        {isLoggingOut ? "Logging out..." : "Logout"}
+                      </span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-center text-sm text-doom-muted">
+                    <p>Skin & Hair Analysis</p>
+                    <p className="text-doom-primary">Health Companion</p>
+                  </div>
+                )}
               </div>
             </motion.div>
           </>

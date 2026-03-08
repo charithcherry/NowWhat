@@ -44,11 +44,16 @@ const DEFAULT_PROFILE = (userId: string): ProfilePayload => ({
 
 type SectionKey = "profile" | "products" | "recommendations" | "analysis" | "insights";
 
-export function SkinHairPage() {
-  const [userId, setUserId] = useState(DEFAULT_USER_ID);
+interface SkinHairPageProps {
+  userId?: string;
+  userName?: string;
+}
+
+export function SkinHairPage({ userId: initialUserId, userName }: SkinHairPageProps) {
+  const [userId, setUserId] = useState(initialUserId || DEFAULT_USER_ID);
   const [activeSection, setActiveSection] = useState<SectionKey>("profile");
 
-  const [profile, setProfile] = useState<ProfilePayload>(DEFAULT_PROFILE(DEFAULT_USER_ID));
+  const [profile, setProfile] = useState<ProfilePayload>(DEFAULT_PROFILE(userId));
   const [summary, setSummary] = useState<SummaryPayload | null>(null);
   const [products, setProducts] = useState<LovedProductPayload[]>([]);
   const [recommendations, setRecommendations] = useState<RecommendationPayload[]>([]);
@@ -345,31 +350,17 @@ export function SkinHairPage() {
   };
 
   return (
-    <main className="min-h-screen pt-20 pb-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+    <main className="min-h-screen pb-6" style={{ paddingTop: "4rem" }}>
+      <div className="max-w-full mx-auto px-2 sm:px-4 lg:px-6 xl:px-8 space-y-6 pt-6">
         <div className="module-card">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
             <div>
-              <p className="text-sm text-doom-muted">Testing user context</p>
-              <h1 className="text-2xl font-bold text-doom-text">Skin & Hair Module Workspace</h1>
-            </div>
-            <div className="w-full md:w-80">
-              <label className="text-xs text-doom-muted">User ID</label>
-              <div className="flex gap-2 mt-1">
-                <input
-                  className="input-field"
-                  value={userId}
-                  onChange={(event) => setUserId(event.target.value)}
-                  placeholder="demo-user"
-                />
-                <button className="btn-secondary" type="button" onClick={() => void loadAll()}>
-                  Load
-                </button>
-              </div>
+              <p className="text-base text-doom-muted">Logged in as {userName || userId}</p>
+              <h1 className="text-3xl font-bold text-doom-text">Skin & Hair Analysis</h1>
             </div>
           </div>
 
-          {statusMessage ? <p className={`mt-4 rounded-lg border px-3 py-2 text-sm ${statusClass}`}>{statusMessage}</p> : null}
+          {statusMessage ? <p className={`mt-4 rounded-lg border px-3 py-2 text-base ${statusClass}`}>{statusMessage}</p> : null}
         </div>
 
         <SummaryCards summary={summary} loading={initializing} />
@@ -382,7 +373,7 @@ export function SkinHairPage() {
                   key={section.key}
                   type="button"
                   onClick={() => setActiveSection(section.key)}
-                  className={`w-full px-4 py-3 rounded-lg border text-base font-medium transition ${
+                  className={`w-full px-4 py-3 rounded-lg border text-lg font-medium transition ${
                     active
                       ? "border-doom-accent bg-doom-accent/20 text-doom-accent"
                       : "border-doom-primary/30 text-doom-text hover:bg-doom-bg/50"

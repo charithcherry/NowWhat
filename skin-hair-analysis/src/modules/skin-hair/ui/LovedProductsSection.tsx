@@ -96,7 +96,7 @@ export function LovedProductsSection({
       {!isOpen ? null : (
         <>
           <div className="rounded-lg border border-doom-primary/20 bg-doom-bg/40 p-4 space-y-3 mb-5 mt-5">
-            <p className="font-semibold text-doom-text">Add product</p>
+            <p className="font-semibold text-lg text-doom-text">Add product</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <input
@@ -126,7 +126,7 @@ export function LovedProductsSection({
                 ))}
               </select>
 
-              <p className="text-xs text-doom-muted self-center">
+              <p className="text-sm text-doom-muted self-center">
                 Ingredient list will be fetched online from product databases when you save.
               </p>
             </div>
@@ -161,7 +161,7 @@ export function LovedProductsSection({
 
           {!showProducts ? null : <div className="space-y-3">
             {sortedProducts.length === 0 ? (
-              <p className="text-sm text-doom-muted">No loved products saved yet.</p>
+              <p className="text-base text-doom-muted">No loved products saved yet.</p>
             ) : (
               sortedProducts.map((product) => {
                 const isEditing = editingId === product._id;
@@ -198,7 +198,7 @@ export function LovedProductsSection({
                               </option>
                             ))}
                           </select>
-                          <p className="text-xs text-doom-muted self-center">
+                          <p className="text-sm text-doom-muted self-center">
                             Ingredients will be refreshed from online lookup when saved.
                           </p>
                         </div>
@@ -225,8 +225,8 @@ export function LovedProductsSection({
                       <>
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
-                            <p className="font-semibold text-doom-text">{product.product_name}</p>
-                            <p className="text-sm text-doom-muted">
+                            <p className="font-semibold text-lg text-doom-text">{product.product_name}</p>
+                            <p className="text-base text-doom-muted">
                               {product.brand} - {product.category}
                             </p>
                           </div>
@@ -253,15 +253,15 @@ export function LovedProductsSection({
                         </div>
 
                         {product.ingredient_lookup_source ? (
-                          <p className="text-xs text-doom-muted mt-2">
+                          <p className="text-sm text-doom-muted mt-2">
                             Source: {product.ingredient_lookup_source}
                             {product.ingredient_lookup_match ? ` (${product.ingredient_lookup_match})` : ""}
                           </p>
                         ) : null}
 
-                        {product.notes ? <p className="text-xs text-doom-muted mt-3">{product.notes}</p> : null}
+                        {product.notes ? <p className="text-sm text-doom-muted mt-3">{product.notes}</p> : null}
                         {product.ingredient_lookup_grounding_line ? (
-                          <p className="text-xs text-doom-muted mt-2">{product.ingredient_lookup_grounding_line}</p>
+                          <p className="text-sm text-doom-muted mt-2">{product.ingredient_lookup_grounding_line}</p>
                         ) : null}
                       </>
                     )}

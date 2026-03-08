@@ -53,8 +53,9 @@ export interface ExerciseSession {
 
 export async function saveExerciseSession(session: ExerciseSession) {
   const db = await getDatabase();
+  const { _id, ...sessionData } = session;
   const result = await db.collection('sessions').insertOne({
-    ...session,
+    ...sessionData,
     date: new Date(),
   });
   return result;

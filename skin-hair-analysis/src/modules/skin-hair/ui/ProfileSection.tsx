@@ -53,7 +53,7 @@ export function ProfileSection({ profile, onChange, onSave, saving, defaultOpen 
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
             <div>
-              <label className="text-sm text-doom-muted">Skin type</label>
+              <label className="text-base text-doom-muted">Skin type</label>
               <select
                 className="input-field mt-1"
                 value={profile.skin_type}
@@ -68,7 +68,7 @@ export function ProfileSection({ profile, onChange, onSave, saving, defaultOpen 
             </div>
 
             <div>
-              <label className="text-sm text-doom-muted">Scalp type</label>
+              <label className="text-base text-doom-muted">Scalp type</label>
               <select
                 className="input-field mt-1"
                 value={profile.scalp_type}
@@ -84,7 +84,7 @@ export function ProfileSection({ profile, onChange, onSave, saving, defaultOpen 
           </div>
 
           <div className="mt-5">
-            <p className="text-sm text-doom-muted mb-2">Concerns</p>
+            <p className="text-base text-doom-muted mb-2">Concerns</p>
             <div className="flex flex-wrap gap-2">
               {CONCERN_OPTIONS.map((concern) => {
                 const active = profile.concerns.includes(concern);
@@ -104,7 +104,7 @@ export function ProfileSection({ profile, onChange, onSave, saving, defaultOpen 
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
             <div>
-              <label className="text-sm text-doom-muted">Allergies (comma separated)</label>
+              <label className="text-base text-doom-muted">Allergies (comma separated)</label>
               <input
                 className="input-field mt-1"
                 value={commaValue(profile.allergies)}
@@ -114,7 +114,7 @@ export function ProfileSection({ profile, onChange, onSave, saving, defaultOpen 
             </div>
 
             <div>
-              <label className="text-sm text-doom-muted">Ingredient sensitivities (comma separated)</label>
+              <label className="text-base text-doom-muted">Ingredient sensitivities (comma separated)</label>
               <input
                 className="input-field mt-1"
                 value={commaValue(profile.sensitivities)}
@@ -125,7 +125,7 @@ export function ProfileSection({ profile, onChange, onSave, saving, defaultOpen 
           </div>
 
           <div className="mt-5">
-            <label className="text-sm text-doom-muted">Preferred categories (optional)</label>
+            <label className="text-base text-doom-muted">Preferred categories (optional)</label>
             <div className="flex flex-wrap gap-2 mt-2">
               {PRODUCT_CATEGORIES.map((category) => {
                 const current = profile.preferred_categories || [];
