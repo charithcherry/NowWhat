@@ -118,6 +118,21 @@ export async function GET(req: NextRequest) {
 
     // ── Build prompt sections ─────────────────────────────────
 
+    // ── Age calculation ───────────────────────────────────────
+    function calculateAge(dob: string): number | null {
+      if (!dob) return null;
+      const birth = new Date(dob);
+      if (isNaN(birth.getTime())) return null;
+      const today = new Date();
+      let age = today.getFullYear() - birth.getFullYear();
+      const notYetHadBirthday =
+        today.getMonth() < birth.getMonth() ||
+        (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate());
+      if (notYetHadBirthday) age--;
+      return age;
+    }
+    const age = calculateAge(userProfile?.dateOfBirth);
+
     const favCuisines = favorites.length > 0
       ? [...new Set(favorites.flatMap((f: any) => f.categories?.map((c: any) => c.title) || []))]
       : [];
@@ -148,7 +163,7 @@ Below is REAL data collected from this user's activity in the past 2 days across
 - Name: ${userDoc?.name || "Unknown"}
 - Email: ${userDoc?.email || "unknown"}
 - Date of Birth: ${userProfile?.dateOfBirth || "unknown"}
-- Age: ${age ? `~${age} years old` : "unknown"}
+- Age: ${age !== null ? `${age} years old` : "unknown"}
 - Height: ${userProfile?.height ? `${userProfile.height}cm` : "unknown"}
 - Weight: ${userProfile?.weight ? `${userProfile.weight}kg` : "unknown"}
 - Activity Level: ${userProfile?.lifestyle || "unknown"}
