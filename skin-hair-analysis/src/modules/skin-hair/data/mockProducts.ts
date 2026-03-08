@@ -6,6 +6,7 @@ export interface CatalogProduct {
   ingredients: string[];
   tags: string[];
   source?: string;
+  product_url?: string;
 }
 
 export const MOCK_PRODUCT_CATALOG: CatalogProduct[] = [

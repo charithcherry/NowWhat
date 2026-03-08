@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { PRODUCT_CATEGORIES } from "./constants";
 import type { CatalogProduct } from "./data/mockProducts";
-import { lookupProductIngredients } from "./ingredientLookup";
+import { buildProductSearchUrl, lookupProductIngredients } from "./ingredientLookup";
 import type { LovedProduct, SkinHairProfile } from "./types";
 
 interface GeminiCandidate {
@@ -170,6 +170,7 @@ export async function discoverProductsWithGemini(params: DiscoveryParams): Promi
           ingredients: lookup.ingredients,
           tags: candidate.tags || [],
           source: "Gemini discovery + online ingredients",
+          product_url: lookup.product_url,
         } as CatalogProduct;
       } catch (error) {
         console.error("Online ingredient lookup failed for Gemini candidate, using Gemini-provided ingredients:", error);
@@ -186,6 +187,7 @@ export async function discoverProductsWithGemini(params: DiscoveryParams): Promi
           ingredients: candidate.ingredients,
           tags: candidate.tags || [],
           source: "Gemini discovery (model-estimated ingredients; verify label)",
+          product_url: buildProductSearchUrl(candidate.product_name, candidate.brand),
         } as CatalogProduct;
       }
     }),

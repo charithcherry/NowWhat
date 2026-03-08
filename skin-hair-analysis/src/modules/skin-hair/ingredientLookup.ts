@@ -6,22 +6,30 @@ interface LookupRequest {
 }
 
 interface LookupCandidate {
+  code?: string;
   product_name?: string;
   brands?: string;
   ingredients_text_en?: string;
   ingredients_text?: string;
   ingredients_tags?: string[];
+  url?: string;
 }
 
 export interface IngredientLookupResult {
   ingredients: string[];
   source: string;
   matched_product: string;
+  product_url: string;
   grounding_line: string;
 }
 
 const LOOKUP_GROUNDING_LINE =
   "Also check: the full ingredient list on the product label or the brand's official product page before use.";
+
+export function buildProductSearchUrl(productName: string, brand?: string): string {
+  const query = [brand, productName, "ingredient list"].filter(Boolean).join(" ");
+  return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+}
 
 function splitTokens(value: string): string[] {
   return value
@@ -110,7 +118,7 @@ async function queryOpenBeautyFacts(query: string): Promise<LookupCandidate[]> {
   const searchUrl =
     `https://world.openbeautyfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}` +
     "&search_simple=1&action=process&json=1&page_size=12" +
-    "&fields=product_name,brands,ingredients_text_en,ingredients_text,ingredients_tags";
+    "&fields=code,product_name,brands,ingredients_text_en,ingredients_text,ingredients_tags,url";
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
@@ -176,6 +184,7 @@ function lookupFromMockCatalog(productName: string, brand?: string): IngredientL
     ingredients: cleanIngredients(matched.ingredients),
     source: "NowWhat fallback catalog",
     matched_product: `${matched.brand} ${matched.product_name}`,
+    product_url: buildProductSearchUrl(matched.product_name, matched.brand),
     grounding_line: LOOKUP_GROUNDING_LINE,
   };
 }
@@ -204,10 +213,15 @@ export async function lookupProductIngredients(request: LookupRequest): Promise<
       const ingredients = cleanIngredients([...fromText, ...fromTags]);
 
       if (ingredients.length >= 5) {
+        const openBeautyFactsUrl =
+          candidate.url ||
+          (candidate.code ? `https://world.openbeautyfacts.org/product/${candidate.code}` : undefined);
+
         return {
           ingredients,
           source: "Open Beauty Facts",
           matched_product: `${candidate.brands || ""} ${candidate.product_name || ""}`.trim() || productName,
+          product_url: openBeautyFactsUrl || buildProductSearchUrl(candidate.product_name || productName, candidate.brands || brand),
           grounding_line: LOOKUP_GROUNDING_LINE,
         };
       }

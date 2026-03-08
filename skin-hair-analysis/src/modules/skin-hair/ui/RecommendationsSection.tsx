@@ -68,6 +68,18 @@ export function RecommendationsSection({
                   {recommendation.recommendation_source ? (
                     <p className="text-xs text-doom-muted mt-1">Source: {recommendation.recommendation_source}</p>
                   ) : null}
+                  {recommendation.product_url ? (
+                    <p className="text-xs text-doom-muted mt-1">
+                      <a
+                        href={recommendation.product_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-doom-accent underline"
+                      >
+                        Take a look and check out the ingredients for yourself.
+                      </a>
+                    </p>
+                  ) : null}
 
                   <div className="mt-3 flex flex-wrap gap-2">
                     {recommendation.matched_ingredients.map((ingredient) => (

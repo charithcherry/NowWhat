@@ -126,6 +126,7 @@ export function generateRecommendations(params: {
       brand: candidate.brand,
       category: candidate.category,
       recommendation_source: candidate.source || "Deterministic catalog",
+      product_url: candidate.product_url,
       match_score: matchScore,
       matched_ingredients: matchedIngredients,
       blocked_ingredients_avoided: blockedAvoided.slice(0, 6),

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { MOCK_PRODUCT_CATALOG, type CatalogProduct } from "@/modules/skin-hair/data/mockProducts";
 import { formatRecommendationCard } from "@/modules/skin-hair/formatters";
 import { discoverProductsWithGemini } from "@/modules/skin-hair/geminiProductDiscovery";
+import { buildProductSearchUrl } from "@/modules/skin-hair/ingredientLookup";
 import {
   getSkinHairProfile,
   listLovedProducts,
@@ -54,7 +55,11 @@ export async function POST(request: NextRequest) {
 
     const combinedCatalog = mergeCatalog(
       geminiCatalog,
-      MOCK_PRODUCT_CATALOG.map((item) => ({ ...item, source: "NowWhat fallback catalog" })),
+      MOCK_PRODUCT_CATALOG.map((item) => ({
+        ...item,
+        source: "NowWhat fallback catalog",
+        product_url: item.product_url || buildProductSearchUrl(item.product_name, item.brand),
+      })),
     );
 
     const generated = generateRecommendations({

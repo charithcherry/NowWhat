@@ -49,6 +49,7 @@ export interface RecommendationPayload {
   brand: string;
   category: string;
   recommendation_source?: string;
+  product_url?: string;
   match_score: number;
   matched_ingredients: string[];
   blocked_ingredients_avoided: string[];
