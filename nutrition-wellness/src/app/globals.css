@@ -28,13 +28,13 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background: var(--doom-bg);
   color: var(--doom-text);
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.5;
 }
 
 @media (min-width: 1024px) {
   body {
-    font-size: 17px;
+    font-size: 18px;
   }
 }
 
@@ -57,7 +57,7 @@ body {
 
 @layer components {
   .module-card {
-    @apply rounded-xl bg-doom-surface border border-doom-primary/20 p-5 sm:p-6;
+    @apply rounded-xl bg-doom-surface border border-doom-primary/20 p-4 sm:p-5;
   }
 
   .module-title {
