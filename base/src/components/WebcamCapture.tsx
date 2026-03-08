@@ -8,9 +8,11 @@ interface WebcamCaptureProps {
   isActive: boolean;
   className?: string;
   currentAngles?: { left: number; right: number } | null;
+  onCameraStateChange?: (active: boolean) => void;
+  cameraCommand?: 'start' | 'stop' | null;
 }
 
-export function WebcamCapture({ onPoseDetected, isActive, className = "", currentAngles = null }: WebcamCaptureProps) {
+export function WebcamCapture({ onPoseDetected, isActive, className = "", currentAngles = null, onCameraStateChange, cameraCommand }: WebcamCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -197,6 +199,7 @@ export function WebcamCapture({ onPoseDetected, isActive, className = "", curren
       // This ensures handleResults doesn't skip results due to async state updates
       cameraActiveRef.current = true;
       setCameraActive(true);
+      if (onCameraStateChange) onCameraStateChange(true);
       console.log("Camera flags set - ready to process results");
 
       if (videoRef.current) {
@@ -242,6 +245,7 @@ export function WebcamCapture({ onPoseDetected, isActive, className = "", curren
     isMountedRef.current = false;
     cameraActiveRef.current = false;
     setCameraActive(false);
+    if (onCameraStateChange) onCameraStateChange(false);
 
     // Step 2: Stop MediaPipe camera first (stops sending new frames)
     if (cameraRef.current) {
@@ -298,6 +302,15 @@ export function WebcamCapture({ onPoseDetected, isActive, className = "", curren
   // NOTE: Camera should NOT auto-start. User must click "Turn On Camera" button.
   // The isActive prop is used for tracking exercise state, not camera state.
   // Removed auto-start effect to prevent unwanted camera activation.
+
+  // Handle camera commands from parent
+  useEffect(() => {
+    if (cameraCommand === 'start' && !cameraActive) {
+      initializePose();
+    } else if (cameraCommand === 'stop' && cameraActive) {
+      stopCamera();
+    }
+  }, [cameraCommand, cameraActive, initializePose, stopCamera]);
 
   // Cleanup on unmount - ensures camera is stopped when navigating away
   // CRITICAL: Empty dependency array [] ensures cleanup ONLY runs on actual component unmount,
@@ -420,29 +433,6 @@ export function WebcamCapture({ onPoseDetected, isActive, className = "", curren
         )}
       </div>
 
-      {/* Camera Controls - Stop Camera Button */}
-      {cameraActive && !isLoading && (
-        <div className="mt-4 flex justify-center">
-          <button
-            onClick={toggleCamera}
-            className="flex items-center space-x-2 px-4 py-2 bg-doom-surface border border-doom-primary/30 rounded-lg hover:bg-doom-bg transition-colors"
-          >
-            <CameraOff className="w-5 h-5 text-doom-secondary" />
-            <span className="text-doom-text">Stop Camera</span>
-          </button>
-        </div>
-      )}
-
-      {/* Instructions */}
-      <div className="mt-4 p-4 bg-doom-surface/50 rounded-lg border border-doom-primary/20">
-        <h4 className="text-sm font-semibold text-doom-primary mb-2">Setup Instructions:</h4>
-        <ul className="text-sm text-doom-muted space-y-1">
-          <li>• Stand 6-8 feet away from the camera</li>
-          <li>• Ensure your full body is visible in the frame</li>
-          <li>• Stand straight with good posture</li>
-          <li>• Good lighting helps improve accuracy</li>
-        </ul>
-      </div>
     </div>
   );
 }

@@ -1,0 +1,224 @@
+/* Fitness Page Styles - Camera-First Design */
+
+/* Top Bar - Exercise Selector + Controls */
+.top-bar {
+  @apply flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-doom-surface/80 backdrop-blur-sm rounded-xl border border-doom-primary/20 mb-4;
+}
+
+.exercise-selector-container {
+  @apply flex items-center gap-3;
+}
+
+.exercise-selector-label {
+  @apply text-doom-text font-semibold text-sm sm:text-base whitespace-nowrap;
+}
+
+.exercise-dropdown {
+  @apply relative;
+}
+
+.exercise-select {
+  @apply appearance-none bg-doom-bg border-2 border-doom-primary/30 text-doom-text px-4 py-2 pr-10 rounded-lg font-semibold text-sm sm:text-base cursor-pointer hover:border-doom-primary focus:border-doom-primary focus:outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.dropdown-icon {
+  @apply absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-doom-primary pointer-events-none;
+}
+
+/* Control Buttons - Horizontal Layout */
+.control-buttons-horizontal {
+  @apply flex flex-wrap items-center gap-2;
+}
+
+.btn-primary {
+  @apply flex items-center gap-2 px-4 py-2 bg-doom-primary text-doom-bg rounded-lg font-semibold text-sm hover:scale-105 transition-transform shadow-lg;
+}
+
+.btn-secondary {
+  @apply flex items-center gap-2 px-4 py-2 bg-doom-secondary text-white rounded-lg font-semibold text-sm hover:scale-105 transition-transform shadow-lg;
+}
+
+.btn-outline {
+  @apply flex items-center gap-2 px-4 py-2 bg-doom-surface border border-doom-primary/30 text-doom-text rounded-lg font-semibold text-sm hover:border-doom-primary hover:bg-doom-bg transition-colors;
+}
+
+/* Camera Container - Maximum Visibility */
+.camera-container {
+  @apply w-full mb-4;
+}
+
+/* Override WebcamCapture aspect ratio for larger view */
+.camera-container .aspect-video {
+  aspect-ratio: 16 / 9;
+  min-height: 60vh;
+  max-height: 75vh;
+}
+
+/* Compact Metrics Bar - One Line */
+.metrics-bar {
+  @apply flex flex-wrap items-center justify-center gap-3 p-4 bg-doom-surface/50 rounded-xl border border-doom-primary/20 mb-4;
+}
+
+.metric-pill {
+  @apply flex items-center gap-2 px-4 py-2 bg-doom-bg rounded-full border border-doom-primary/30;
+}
+
+.metric-pill-label {
+  @apply text-doom-muted text-sm font-medium;
+}
+
+.metric-pill-value {
+  @apply text-doom-text text-sm font-bold;
+}
+
+/* Phase Indicator Pill */
+.phase-pill {
+  @apply border-2;
+}
+
+.phase-up {
+  @apply bg-doom-primary/10 border-doom-primary;
+}
+
+.phase-up .metric-pill-value {
+  @apply text-doom-primary;
+}
+
+.phase-down {
+  @apply bg-doom-accent/10 border-doom-accent;
+}
+
+.phase-down .metric-pill-value {
+  @apply text-doom-accent;
+}
+
+/* Collapsible Instructions */
+.instructions-container {
+  @apply bg-doom-surface/50 rounded-xl border border-doom-primary/20 overflow-hidden;
+}
+
+.instructions-toggle {
+  @apply w-full flex items-center justify-between px-4 py-3 text-doom-text hover:bg-doom-bg/50 transition-colors;
+}
+
+.instructions-toggle span {
+  @apply text-sm font-semibold;
+}
+
+.instructions-content {
+  @apply px-4 pb-4 pt-2;
+}
+
+.instructions-list {
+  @apply space-y-2 text-sm text-doom-muted;
+}
+
+.instructions-list li {
+  @apply flex items-start;
+}
+
+.instructions-list li::before {
+  content: "•";
+  @apply text-doom-primary mr-2 font-bold;
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 640px) {
+  .top-bar {
+    @apply flex-col items-stretch;
+  }
+
+  .exercise-selector-container {
+    @apply flex-col items-stretch gap-2;
+  }
+
+  .control-buttons-horizontal {
+    @apply grid grid-cols-2 gap-2;
+  }
+
+  .control-buttons-horizontal button {
+    @apply justify-center;
+  }
+
+  .metrics-bar {
+    @apply grid grid-cols-2 gap-2;
+  }
+
+  .metric-pill {
+    @apply justify-center;
+  }
+
+  .camera-container .aspect-video {
+    min-height: 50vh;
+  }
+}
+
+/* Tablet Responsive */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .control-buttons-horizontal {
+    @apply flex-wrap;
+  }
+
+  .camera-container .aspect-video {
+    min-height: 65vh;
+  }
+}
+
+/* Large Screen Optimization */
+@media (min-width: 1280px) {
+  .camera-container .aspect-video {
+    max-height: 70vh;
+  }
+}
+
+/* Animation for smooth transitions */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.instructions-content {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Focus states for accessibility */
+.exercise-select:focus,
+.btn-primary:focus,
+.btn-secondary:focus,
+.btn-outline:focus,
+.instructions-toggle:focus {
+  @apply outline-none ring-2 ring-doom-primary/50 ring-offset-2 ring-offset-doom-bg;
+}
+
+/* Hover effects */
+.metric-pill {
+  @apply transition-all duration-200;
+}
+
+.metric-pill:hover {
+  @apply transform scale-105 border-doom-primary/60;
+}
+
+/* Loading and disabled states */
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-outline:disabled {
+  @apply opacity-50 cursor-not-allowed hover:scale-100;
+}
+
+/* High contrast mode for better visibility */
+@media (prefers-contrast: high) {
+  .metric-pill {
+    @apply border-2;
+  }
+
+  .btn-outline {
+    @apply border-2;
+  }
+}

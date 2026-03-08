@@ -1,41 +1,73 @@
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
-.yarn/install-state.gz
+# Dependencies (any implementation)
+**/node_modules/
+**/.pnp
+**/.pnp.js
+**/.yarn/install-state.gz
 
-# testing
-/coverage
+# Testing
+**/coverage/
 
-# next.js
-/.next/
-/out/
+# Next.js (base/ and any other Next.js implementations)
+**/.next/
+**/out/
 
-# production
-/build
+# Production builds
+**/build/
+**/dist/
 
-# misc
+# Misc
 .DS_Store
 *.pem
+**/.DS_Store
 
-# debug
+# Debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# local env files
+# Environment files (all implementations)
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+**/.env.local
+**/.env
 
-# vercel
+# Vercel
 .vercel
+**/.vercel/
 
-# typescript
+# TypeScript
 *.tsbuildinfo
 next-env.d.ts
+**/tsconfig.tsbuildinfo
 
-# claude
+# Claude
 .claude/
+**/.claude/
+
+# Exercise logs (runtime generated)
+**/exercise-log.txt
+exercise-log.txt
+
+# Python (for future backend implementations)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+**/venv/
+**/env/
+**/.venv/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db

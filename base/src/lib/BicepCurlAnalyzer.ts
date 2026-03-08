@@ -3,7 +3,9 @@
  *
  * Validates:
  * 1. Straight posture (back/head alignment)
- * 2. Arms close to body (0° angle between body and bicep area)
+ * 2. Arms close to body:
+ *    - Arm-body angle: angle between shoulder→elbow and shoulder→hip lines
+ *    - ESH angle: elbow→shoulder→hip angle (vertical alignment, matching JS implementation)
  * 3. Full body visibility
  * 4. Proper rep counting based on elbow flexion
  */
@@ -25,6 +27,9 @@ export interface BicepCurlMetrics {
   feedback: string[];
   isInValidPosition: boolean;
   phase: 'down' | 'up' | 'neutral';
+  // Additional metrics for detailed analysis
+  eshAngles?: { left: number; right: number }; // Elbow-Shoulder-Hip angles (vertical alignment)
+  armBodyAngles?: { left: number; right: number }; // Arm-body angles (directional alignment)
 }
 
 export interface PostureAnalysis {
@@ -38,6 +43,8 @@ export interface ArmPositionAnalysis {
   isArmCloseToBody: boolean;
   leftArmBodyAngle: number;
   rightArmBodyAngle: number;
+  leftESH: number; // Elbow-Shoulder-Hip angle (vertical alignment)
+  rightESH: number; // Elbow-Shoulder-Hip angle (vertical alignment)
   issues: string[];
 }
 
@@ -52,6 +59,7 @@ export class BicepCurlAnalyzer {
   private readonly MIN_ANGLE_DOWN = 160; // Arm fully extended (buffer from 180)
   private readonly MAX_ANGLE_UP = 30;    // Arm fully flexed (realistic threshold)
   private readonly ARM_BODY_MAX_ANGLE = 15; // Max angle between arm and body (close to 0)
+  private readonly ESH_MAX_ANGLE = 30; // Max elbow-shoulder-hip angle (vertical alignment)
   private readonly MIN_VISIBILITY = 0.5; // Minimum landmark visibility
   private readonly BACK_STRAIGHT_THRESHOLD = 170; // Shoulder-hip-knee angle for straight back
 
@@ -190,9 +198,14 @@ export class BicepCurlAnalyzer {
 
     this.log(
       `Posture - Back Angle: ${Math.round(postureAnalysis.backAngle)}° | ` +
-      `Head Alignment: ${postureAnalysis.headAlignment.toFixed(2)}% | ` +
-      `Left Arm-Body: ${Math.round(armPositionAnalysis.leftArmBodyAngle)}° | ` +
-      `Right Arm-Body: ${Math.round(armPositionAnalysis.rightArmBodyAngle)}°`
+      `Head Alignment: ${postureAnalysis.headAlignment.toFixed(2)}%`
+    );
+
+    this.log(
+      `Arm Position - Left Arm-Body: ${Math.round(armPositionAnalysis.leftArmBodyAngle)}° | ` +
+      `Right Arm-Body: ${Math.round(armPositionAnalysis.rightArmBodyAngle)}° | ` +
+      `Left ESH: ${armPositionAnalysis.leftESH}° | ` +
+      `Right ESH: ${armPositionAnalysis.rightESH}°`
     );
 
     // 7. Check if in valid starting position
@@ -225,6 +238,14 @@ export class BicepCurlAnalyzer {
       feedback,
       isInValidPosition,
       phase: this.phase,
+      eshAngles: {
+        left: armPositionAnalysis.leftESH,
+        right: armPositionAnalysis.rightESH,
+      },
+      armBodyAngles: {
+        left: Math.round(armPositionAnalysis.leftArmBodyAngle),
+        right: Math.round(armPositionAnalysis.rightArmBodyAngle),
+      },
     };
   }
 
@@ -348,47 +369,81 @@ export class BicepCurlAnalyzer {
   }
 
   /**
-   * Analyze arm position - arms should be close to body (0° angle)
+   * Analyze arm position - arms should be close to body
+   * Includes both arm-body angle and ESH (elbow-shoulder-hip) angle validation
    */
   private analyzeArmPosition(landmarks: PoseLandmark[]): ArmPositionAnalysis {
     const issues: string[] = [];
 
-    // Left arm-body angle
+    // Left arm-body angle (using arctan2 method)
     const leftArmBodyAngle = this.calculateArmBodyAngle(
       landmarks[this.LANDMARKS.LEFT_SHOULDER],
       landmarks[this.LANDMARKS.LEFT_ELBOW],
       landmarks[this.LANDMARKS.LEFT_HIP]
     );
 
-    // Right arm-body angle
+    // Right arm-body angle (using arctan2 method)
     const rightArmBodyAngle = this.calculateArmBodyAngle(
       landmarks[this.LANDMARKS.RIGHT_SHOULDER],
       landmarks[this.LANDMARKS.RIGHT_ELBOW],
       landmarks[this.LANDMARKS.RIGHT_HIP]
     );
 
+    // Left ESH angle: elbow → shoulder → hip (angle AT the shoulder)
+    // This matches the JavaScript implementation: calculate_angle(lelbow, lshoulder, lhip)
+    const leftESH = Math.abs(Math.round(this.calculateAngle(
+      landmarks[this.LANDMARKS.LEFT_ELBOW],   // Point A
+      landmarks[this.LANDMARKS.LEFT_SHOULDER], // Point B (vertex)
+      landmarks[this.LANDMARKS.LEFT_HIP]       // Point C
+    )));
+
+    // Right ESH angle: elbow → shoulder → hip (angle AT the shoulder)
+    // This matches the JavaScript implementation: calculate_angle(relbow, rshoulder, rhip)
+    const rightESH = Math.abs(Math.round(this.calculateAngle(
+      landmarks[this.LANDMARKS.RIGHT_ELBOW],   // Point A
+      landmarks[this.LANDMARKS.RIGHT_SHOULDER], // Point B (vertex)
+      landmarks[this.LANDMARKS.RIGHT_HIP]       // Point C
+    )));
+
+    // Validation: arms should be close to body
     const isArmCloseToBody =
       leftArmBodyAngle <= this.ARM_BODY_MAX_ANGLE &&
-      rightArmBodyAngle <= this.ARM_BODY_MAX_ANGLE;
+      rightArmBodyAngle <= this.ARM_BODY_MAX_ANGLE &&
+      leftESH <= this.ESH_MAX_ANGLE &&
+      rightESH <= this.ESH_MAX_ANGLE;
 
+    // Provide feedback for arm-body angle
     if (leftArmBodyAngle > this.ARM_BODY_MAX_ANGLE || rightArmBodyAngle > this.ARM_BODY_MAX_ANGLE) {
       issues.push(`💪 Keep elbows closer - left: ${Math.round(leftArmBodyAngle)}°, right: ${Math.round(rightArmBodyAngle)}° (max ${this.ARM_BODY_MAX_ANGLE}°)`);
+    }
+
+    // Provide feedback for ESH angle (vertical alignment)
+    if (leftESH > this.ESH_MAX_ANGLE || rightESH > this.ESH_MAX_ANGLE) {
+      issues.push(`💪 Keep elbows in line with shoulders - Left ESH: ${leftESH}°, Right ESH: ${rightESH}° (max ${this.ESH_MAX_ANGLE}°)`);
     }
 
     return {
       isArmCloseToBody,
       leftArmBodyAngle,
       rightArmBodyAngle,
+      leftESH,
+      rightESH,
       issues,
     };
   }
 
   /**
-   * Calculate angle between arm and body
-   * Uses arctan2 method to calculate the angle between:
+   * Calculate angle between arm and body using arctan2 method
+   *
+   * This calculates the angle between two lines:
    * - Body line (shoulder to hip)
    * - Arm line (shoulder to elbow)
+   *
    * Returns the angle in degrees (0 = arm perfectly aligned with body)
+   *
+   * NOTE: This is DIFFERENT from the ESH angle (elbow-shoulder-hip).
+   * - This method: Measures the angle between two LINE DIRECTIONS
+   * - ESH angle: Measures the angle AT THE SHOULDER JOINT between three points
    */
   private calculateArmBodyAngle(
     shoulder: PoseLandmark,
