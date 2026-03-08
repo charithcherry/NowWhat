@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { AgentChat } from "@/components/AgentChat";
+import { getCurrentUser } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "WellBeing App - Your Complete Health Companion",
@@ -15,16 +16,17 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const user = await getCurrentUser().catch(() => null);
   return (
     <html lang="en">
       <body className="bg-doom-bg text-doom-text min-h-screen">
         <Providers>{children}</Providers>
-        <AgentChat />
+        <AgentChat userId={user?.userId ?? ""} />
       </body>
     </html>
   );

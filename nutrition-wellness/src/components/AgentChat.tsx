@@ -8,8 +8,7 @@ interface Message {
   content: string;
 }
 
-export function AgentChat() {
-  const [userId, setUserId] = useState<string>("");
+export function AgentChat({ userId = "" }: { userId?: string }) {
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [initialized, setInitialized] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -31,34 +30,23 @@ export function AgentChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const x = window.innerWidth - 80;
-    const y = window.innerHeight - 100;
-    setPos({ x, y });
+    setPos({ x: window.innerWidth - 80, y: window.innerHeight - 100 });
     setInitialized(true);
 
-    fetch("/api/auth/me")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        const uid = data?.user?.userId || data?.user?.id || "";
-        if (uid) {
-          setUserId(uid);
-          // Load localStorage instantly so chat is usable immediately on this origin
-          // The MongoDB cache ensures the same profile is served across all services
-          try {
-            const stored = localStorage.getItem(`wb_agent_profile_${uid}`);
-            if (stored) {
-              const { context, timestamp } = JSON.parse(stored);
-              if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
-                setProfileContext(context);
-              } else {
-                localStorage.removeItem(`wb_agent_profile_${uid}`);
-              }
-            }
-          } catch { /* ignore malformed */ }
+    if (userId) {
+      try {
+        const stored = localStorage.getItem(`wb_agent_profile_${userId}`);
+        if (stored) {
+          const { context, timestamp } = JSON.parse(stored);
+          if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
+            setProfileContext(context);
+          } else {
+            localStorage.removeItem(`wb_agent_profile_${userId}`);
+          }
         }
-      })
-      .catch(() => {});
-  }, []);
+      } catch { /* ignore malformed */ }
+    }
+  }, [userId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

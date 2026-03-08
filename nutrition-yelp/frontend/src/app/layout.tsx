@@ -7,13 +7,15 @@ export const metadata: Metadata = {
 };
 
 import { AgentChat } from "@/components/AgentChat";
+import { getCurrentUser } from "@/lib/auth";
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const user = await getCurrentUser().catch(() => null);
   return (
     <html lang="en">
       <body>
         {children}
-        <AgentChat />
+        <AgentChat userId={user?.userId ?? ""} />
       </body>
     </html>
   );
