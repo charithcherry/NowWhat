@@ -821,7 +821,7 @@ Collections: sessions, users (future)
 
 ### **Gemini API:**
 ```
-Key: AIzaSyDwRs6uRfbPMiJ7XE56iXrn-R9Z3rf_zSw
+Key: REDACTED
 Usage: Ready for advanced analysis (not yet implemented)
 ```
 

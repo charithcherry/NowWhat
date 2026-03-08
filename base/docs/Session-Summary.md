@@ -239,7 +239,7 @@ Phase: down (waiting for curl up to <30° to count rep)
 ```
 MONGODB_URI=mongodb+srv://...
 MONGODB_DB=wellbeing_app
-GEMINI_API_KEY=AIzaSyDwRs6uRfbPMiJ7XE56iXrn-R9Z3rf_zSw
+GEMINI_API_KEY=REDACTED
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
