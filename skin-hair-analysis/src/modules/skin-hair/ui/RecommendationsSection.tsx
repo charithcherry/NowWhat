@@ -1,18 +1,24 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
-import type { RecommendationPayload } from "./types";
+import type { LovedProductPayload, RecommendationPayload } from "./types";
 
 interface RecommendationsSectionProps {
   recommendations: RecommendationPayload[];
+  lovedProducts: LovedProductPayload[];
   onGenerate: () => Promise<void>;
+  onSaveToLoved: (recommendation: RecommendationPayload) => Promise<void>;
   loading: boolean;
+  saveToLovedLoading: boolean;
   defaultOpen?: boolean;
 }
 
 export function RecommendationsSection({
   recommendations,
+  lovedProducts,
   onGenerate,
+  onSaveToLoved,
   loading,
+  saveToLovedLoading,
   defaultOpen = false,
 }: RecommendationsSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -45,66 +51,84 @@ export function RecommendationsSection({
             {recommendations.length === 0 ? (
               <p className="text-sm text-doom-muted">No recommendations yet. Save profile and loved products first.</p>
             ) : (
-              recommendations.map((recommendation) => (
-                <div
-                  key={recommendation._id || recommendation.product_name}
-                  className="rounded-lg border border-doom-primary/20 bg-doom-bg/40 p-4"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-doom-text">{recommendation.product_name}</p>
-                      <p className="text-sm text-doom-muted">
-                        {recommendation.brand} - {recommendation.category}
-                      </p>
-                    </div>
-                    <span className="chip">Match score: {recommendation.match_score}</span>
-                  </div>
+              recommendations.map((recommendation) => {
+                const alreadySaved = lovedProducts.some(
+                  (product) =>
+                    product.product_name.trim().toLowerCase() === recommendation.product_name.trim().toLowerCase() &&
+                    product.brand.trim().toLowerCase() === recommendation.brand.trim().toLowerCase(),
+                );
 
-                  <p className="text-sm text-doom-text mt-3">
-                    Result: {recommendation.product_name} appears compatible with your current product fingerprint.
-                  </p>
-                  <p className="text-sm text-doom-muted mt-1">Why it fits: {recommendation.recommendation_reason}</p>
-                  <p className="text-xs text-doom-accent mt-1">Confidence: {recommendation.confidence}</p>
-                  {recommendation.recommendation_source ? (
-                    <p className="text-xs text-doom-muted mt-1">Source: {recommendation.recommendation_source}</p>
-                  ) : null}
-                  {recommendation.product_url ? (
-                    <p className="text-xs text-doom-muted mt-1">
-                      <a
-                        href={recommendation.product_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-doom-accent underline"
-                      >
-                        Take a look and check out the ingredients for yourself.
-                      </a>
-                    </p>
-                  ) : null}
-
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {recommendation.matched_ingredients.map((ingredient) => (
-                      <span key={`${recommendation._id}-${ingredient}`} className="chip">
-                        matched: {ingredient}
-                      </span>
-                    ))}
-                  </div>
-
-                  {recommendation.blocked_ingredients_avoided.length > 0 ? (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {recommendation.blocked_ingredients_avoided.map((ingredient) => (
-                        <span
-                          key={`${recommendation._id}-blocked-${ingredient}`}
-                          className="chip text-green-300 border-green-500/30"
+                return (
+                  <div
+                    key={recommendation._id || recommendation.product_name}
+                    className="rounded-lg border border-doom-primary/20 bg-doom-bg/40 p-4"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-doom-text">{recommendation.product_name}</p>
+                        <p className="text-sm text-doom-muted">
+                          {recommendation.brand} - {recommendation.category}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="chip">Match score: {recommendation.match_score}</span>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          disabled={alreadySaved || saveToLovedLoading}
+                          onClick={() => onSaveToLoved(recommendation)}
                         >
-                          avoided: {ingredient}
+                          {alreadySaved ? "Saved" : saveToLovedLoading ? "Saving..." : "Save to loved"}
+                        </button>
+                      </div>
+                    </div>
+
+                    <p className="text-sm text-doom-text mt-3">
+                      Result: {recommendation.product_name} appears compatible with your current product fingerprint.
+                    </p>
+                    <p className="text-sm text-doom-muted mt-1">Why it fits: {recommendation.recommendation_reason}</p>
+                    <p className="text-xs text-doom-accent mt-1">Confidence: {recommendation.confidence}</p>
+                    {recommendation.recommendation_source ? (
+                      <p className="text-xs text-doom-muted mt-1">Source: {recommendation.recommendation_source}</p>
+                    ) : null}
+                    {recommendation.product_url ? (
+                      <p className="text-xs text-doom-muted mt-1">
+                        <a
+                          href={recommendation.product_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-doom-accent underline"
+                        >
+                          Take a look and check out the ingredients for yourself.
+                        </a>
+                      </p>
+                    ) : null}
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {recommendation.matched_ingredients.map((ingredient) => (
+                        <span key={`${recommendation._id}-${ingredient}`} className="chip">
+                          matched: {ingredient}
                         </span>
                       ))}
                     </div>
-                  ) : null}
 
-                  <p className="text-xs text-doom-muted mt-3">{recommendation.grounding_line}</p>
-                </div>
-              ))
+                    {recommendation.blocked_ingredients_avoided.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {recommendation.blocked_ingredients_avoided.map((ingredient) => (
+                          <span
+                            key={`${recommendation._id}-blocked-${ingredient}`}
+                            className="chip text-green-300 border-green-500/30"
+                          >
+                            avoided: {ingredient}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    <p className="text-xs text-doom-muted mt-3">{recommendation.grounding_line}</p>
+                  </div>
+                );
+              })
             )}
           </div>
         </>

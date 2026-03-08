@@ -214,6 +214,42 @@ export function SkinHairPage() {
     }
   }, [showStatus, userId]);
 
+  const saveRecommendationToLovedHandler = useCallback(
+    async (recommendation: RecommendationPayload) => {
+      const alreadySaved = products.some(
+        (product) =>
+          product.product_name.trim().toLowerCase() === recommendation.product_name.trim().toLowerCase() &&
+          product.brand.trim().toLowerCase() === recommendation.brand.trim().toLowerCase(),
+      );
+
+      if (alreadySaved) {
+        showStatus("This product is already in loved products.", "info");
+        return;
+      }
+
+      try {
+        setProductsLoading(true);
+        await createLovedProduct({
+          user_id: userId,
+          product_name: recommendation.product_name,
+          brand: recommendation.brand,
+          category: recommendation.category,
+        });
+
+        const [nextProducts, nextSummary] = await Promise.all([fetchLovedProducts(userId), fetchSummary(userId)]);
+        setProducts(nextProducts);
+        setSummary(nextSummary);
+        showStatus("Recommendation saved to loved products.", "info");
+      } catch (error) {
+        console.error(error);
+        showStatus((error as Error).message, "error");
+      } finally {
+        setProductsLoading(false);
+      }
+    },
+    [products, showStatus, userId],
+  );
+
   const refreshInsightsHandler = useCallback(async () => {
     try {
       setInsightsLoading(true);
@@ -276,8 +312,11 @@ export function SkinHairPage() {
       return (
         <RecommendationsSection
           recommendations={recommendations}
+          lovedProducts={products}
           onGenerate={generateRecommendationsHandler}
+          onSaveToLoved={saveRecommendationToLovedHandler}
           loading={recommendationsLoading}
+          saveToLovedLoading={productsLoading}
           defaultOpen
         />
       );
