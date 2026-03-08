@@ -36,6 +36,8 @@ export function Navigation({ user }: NavigationProps) {
     } catch (error) {
       console.error("Logout API failed:", error);
     } finally {
+      // Clear agent profile memory
+      Object.keys(localStorage).filter((k) => k.startsWith("wb_agent_profile_")).forEach((k) => localStorage.removeItem(k));
       window.location.href = "http://localhost:3000";
     }
   };

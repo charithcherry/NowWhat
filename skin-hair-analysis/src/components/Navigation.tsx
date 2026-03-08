@@ -39,6 +39,8 @@ export function Navigation({ user }: NavigationProps) {
     } finally {
       // Always redirect to base homepage, even if API fails
       // This ensures cookies are cleared and user sees login page
+      // Clear agent profile memory
+      Object.keys(localStorage).filter((k) => k.startsWith("wb_agent_profile_")).forEach((k) => localStorage.removeItem(k));
       window.location.href = "http://localhost:3000";
     }
   };

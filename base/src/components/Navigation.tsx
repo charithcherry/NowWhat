@@ -39,7 +39,10 @@ export function Navigation({ user }: NavigationProps) {
   const handleLogout = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
-      // Force full page reload to clear all state and redirect
+      // Clear all agent profile memory from localStorage
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith("wb_agent_profile_"))
+        .forEach((k) => localStorage.removeItem(k));
       window.location.href = "/";
     } catch (err) {
       console.error("Logout failed:", err);

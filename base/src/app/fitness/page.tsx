@@ -8,7 +8,7 @@ import { LateralRaisesAnalyzer, type LateralRaisesMetrics } from "@/lib/LateralR
 import { Play, Square, RotateCcw, FileText, Trash2, ChevronDown, Camera, CameraOff, Volume2, VolumeX, HelpCircle, X } from "lucide-react";
 import {
   VoiceFeedbackManager,
-  WebSpeechVoice,
+  ElevenLabsVoice,
   BICEP_CURL_MESSAGES,
   LATERAL_RAISE_MESSAGES,
   getRepCountMessage,
@@ -95,26 +95,17 @@ export default function FitnessPage() {
   // Initialize voice feedback manager
   useEffect(() => {
     if (typeof window !== 'undefined' && !voiceManagerRef.current) {
-      console.log('🎤 Initializing voice feedback system...');
+      console.log('🎤 Initializing ElevenLabs voice feedback system...');
 
-      // Check if speech synthesis is supported
-      if (!('speechSynthesis' in window)) {
-        console.error('❌ Speech synthesis not supported in this browser');
-        alert('Voice feedback is not supported in your browser. Please use Chrome, Safari, or Edge.');
-        setVoiceEnabled(false);
-        return;
-      }
-
-      console.log('✅ Speech synthesis supported');
-
-      const voiceProvider = new WebSpeechVoice({
+      const voiceProvider = new ElevenLabsVoice({
+        apiKey: process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || '',
+        volume: voiceVolume,
         rate: 1.0,
         pitch: 1.0,
-        volume: voiceVolume,
         language: 'en-US',
       });
 
-      console.log(`🔧 Voice config - Volume: ${voiceVolume}, Rate: 1.0, Pitch: 1.0, Language: en-US`);
+      console.log(`🔧 ElevenLabs Voice config - Volume: ${voiceVolume}, Model: eleven_flash_v2_5`);
 
       voiceManagerRef.current = new VoiceFeedbackManager(voiceProvider, {
         minMessageInterval: VOICE_FEEDBACK_SETTINGS.MIN_MESSAGE_INTERVAL,

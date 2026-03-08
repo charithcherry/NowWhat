@@ -42,8 +42,19 @@ export function AgentChat() {
         const uid = data?.user?.userId || data?.user?.id || "";
         if (uid) {
           setUserId(uid);
-          const saved = sessionStorage.getItem(`wb_agent_profile_${uid}`);
-          if (saved) setProfileContext(saved);
+          // Load localStorage instantly so chat is usable immediately on this origin
+          // The MongoDB cache ensures the same profile is served across all services
+          try {
+            const stored = localStorage.getItem(`wb_agent_profile_${uid}`);
+            if (stored) {
+              const { context, timestamp } = JSON.parse(stored);
+              if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
+                setProfileContext(context);
+              } else {
+                localStorage.removeItem(`wb_agent_profile_${uid}`);
+              }
+            }
+          } catch { /* ignore malformed */ }
         }
       })
       .catch(() => {});
@@ -55,35 +66,45 @@ export function AgentChat() {
 
   const buildProfile = useCallback(
     async (uid: string) => {
-      if (profileContext) return;
       setProfileLoading(true);
       try {
         const res = await fetch(`/api/agent/profile?userId=${uid}`);
         const data = await res.json();
-        const ctx =
-          data.profileContext || "A health-conscious WellBeing app user.";
+        const ctx = data.profileContext || "A health-conscious WellBeing app user.";
         setProfileContext(ctx);
-        sessionStorage.setItem(`wb_agent_profile_${uid}`, ctx);
+        // Save to localStorage as a fast local cache for this origin
+        localStorage.setItem(`wb_agent_profile_${uid}`, JSON.stringify({
+          context: ctx,
+          timestamp: Date.now(),
+        }));
       } catch {
-        const fallback = "A WellBeing app user focused on health and wellness.";
-        setProfileContext(fallback);
+        // If API fails, try loading from localStorage as fallback
+        try {
+          const stored = localStorage.getItem(`wb_agent_profile_${uid}`);
+          if (stored) {
+            const { context } = JSON.parse(stored);
+            if (context) { setProfileContext(context); return; }
+          }
+        } catch { /* ignore */ }
+        setProfileContext("A WellBeing app user focused on health and wellness.");
       } finally {
         setProfileLoading(false);
       }
     },
-    [profileContext]
+    []
   );
 
   const handleStickerClick = useCallback(() => {
     if (dragState.current.moved) return;
     setIsOpen((prev) => {
       const opening = !prev;
-      if (opening && !profileContext && userId) {
+      // Always refresh profile on every open
+      if (opening && userId) {
         buildProfile(userId);
       }
       return opening;
     });
-  }, [profileContext, userId, buildProfile]);
+  }, [userId, buildProfile]);
 
   const sendMessage = useCallback(async () => {
     if (!input.trim() || sending || profileLoading) return;

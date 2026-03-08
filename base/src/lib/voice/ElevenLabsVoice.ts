@@ -1,145 +1,166 @@
-/**
- * ElevenLabs Voice Provider (Stub Implementation)
- * This is a placeholder for future ElevenLabs integration
- */
-
 import { IVoiceFeedback, VoiceConfig } from './IVoiceFeedback';
 import { WebSpeechVoice } from './WebSpeechVoice';
 
 export interface ElevenLabsConfig extends VoiceConfig {
-  apiKey?: string;
-  voiceId?: string; // ElevenLabs voice ID
-  modelId?: string; // ElevenLabs model ID
+  apiKey: string;
+  voiceId?: string;
+  modelId?: string;
 }
 
 export class ElevenLabsVoice implements IVoiceFeedback {
   private config: ElevenLabsConfig;
-  private fallbackProvider: WebSpeechVoice;
-  private isElevenLabsAvailable: boolean = false;
+  private fallback: WebSpeechVoice;
 
-  constructor(config: ElevenLabsConfig = {}) {
+  // Track current playback so stop() can cancel it cleanly
+  private currentAudio: HTMLAudioElement | null = null;
+  private currentObjectUrl: string | null = null;
+  private currentAbortController: AbortController | null = null;
+  private pendingResolve: (() => void) | null = null;
+
+  constructor(config: ElevenLabsConfig) {
     this.config = {
-      rate: config.rate ?? 1.0,
-      pitch: config.pitch ?? 1.0,
-      volume: config.volume ?? 1.0,
+      rate:     config.rate     ?? 1.0,
+      pitch:    config.pitch    ?? 1.0,
+      volume:   config.volume   ?? 0.9,
       language: config.language ?? 'en-US',
-      apiKey: config.apiKey,
-      voiceId: config.voiceId ?? 'EXAVITQu4vr4xnSDxMaL', // Default: Bella (warm, engaging)
-      modelId: config.modelId ?? 'eleven_monolingual_v1',
+      apiKey:   config.apiKey,
+      // eleven_turbo_v2_5 — good quality + fast (better than flash for coaching)
+      modelId:  config.modelId  ?? 'eleven_turbo_v2_5',
+      // EXAVITQu4vr4xnSDxMaL = Sarah — clear, friendly female coaching voice
+      voiceId:  config.voiceId  ?? 'EXAVITQu4vr4xnSDxMaL',
     };
 
-    // Create fallback provider
-    this.fallbackProvider = new WebSpeechVoice({
-      rate: this.config.rate,
-      pitch: this.config.pitch,
-      volume: this.config.volume,
+    this.fallback = new WebSpeechVoice({
+      rate:     this.config.rate,
+      pitch:    this.config.pitch,
+      volume:   this.config.volume,
       language: this.config.language,
     });
-
-    // TODO: Check if ElevenLabs API is available
-    this.checkElevenLabsAvailability();
-  }
-
-  /**
-   * Checks if ElevenLabs API is available and properly configured
-   */
-  private async checkElevenLabsAvailability(): Promise<void> {
-    // TODO: Implement ElevenLabs API availability check
-    // - Verify API key is present
-    // - Test API connection
-    // - Check rate limits
-
-    if (!this.config.apiKey) {
-      console.warn('ElevenLabs API key not provided, falling back to Web Speech');
-      this.isElevenLabsAvailable = false;
-      return;
-    }
-
-    // TODO: Make test API call to verify key and connectivity
-    // For now, assume unavailable
-    this.isElevenLabsAvailable = false;
   }
 
   async speak(text: string, config?: Partial<VoiceConfig>): Promise<void> {
-    // TODO: Implement ElevenLabs text-to-speech
-    // 1. Make API call to ElevenLabs
-    // 2. Get audio stream
-    // 3. Play audio using Web Audio API
-    // 4. Handle errors and fallback
+    // Cancel anything currently in flight before starting a new utterance
+    this.stop();
 
-    if (!this.isElevenLabsAvailable) {
-      console.log('Using Web Speech fallback for:', text);
-      return this.fallbackProvider.speak(text, config);
-    }
+    const volume = (config?.volume ?? this.config.volume ?? 0.9) as number;
+    const abortController = new AbortController();
+    this.currentAbortController = abortController;
 
-    // TODO: ElevenLabs implementation
-    /*
     try {
       const response = await fetch(
         `https://api.elevenlabs.io/v1/text-to-speech/${this.config.voiceId}`,
         {
-          method: 'POST',
+          method:  'POST',
+          signal:  abortController.signal,
           headers: {
-            'Accept': 'audio/mpeg',
+            'Accept':       'audio/mpeg',
             'Content-Type': 'application/json',
-            'xi-api-key': this.config.apiKey!,
+            'xi-api-key':   this.config.apiKey,
           },
           body: JSON.stringify({
             text,
             model_id: this.config.modelId,
             voice_settings: {
-              stability: 0.5,
-              similarity_boost: 0.75,
+              stability:         0.55,
+              similarity_boost:  0.75,
+              style:             0.2,
+              use_speaker_boost: true,
             },
           }),
         }
       );
 
       if (!response.ok) {
-        throw new Error(`ElevenLabs API error: ${response.status}`);
+        const err = await response.text().catch(() => '');
+        console.warn(`[ElevenLabs] ${response.status} error: ${err} — using Web Speech fallback`);
+        return this.fallback.speak(text, config);
       }
 
       const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
 
-      audio.volume = this.config.volume ?? 1.0;
+      // If stop() was called while waiting for the blob, bail out
+      if (abortController.signal.aborted) return;
 
-      return new Promise((resolve, reject) => {
-        audio.onended = () => {
-          URL.revokeObjectURL(audioUrl);
+      const objectUrl = URL.createObjectURL(audioBlob);
+      this.currentObjectUrl = objectUrl;
+
+      const audio = new Audio(objectUrl);
+      audio.volume = Math.max(0, Math.min(1, volume));
+      this.currentAudio = audio;
+
+      return new Promise<void>((resolve) => {
+        // Store resolve so stop() can unblock VoiceFeedbackManager
+        this.pendingResolve = resolve;
+
+        const finish = () => {
+          this.pendingResolve = null;
+          this.cleanup();
           resolve();
         };
-        audio.onerror = (error) => {
-          URL.revokeObjectURL(audioUrl);
-          reject(error);
-        };
-        audio.play();
-      });
-    } catch (error) {
-      console.error('ElevenLabs error, falling back to Web Speech:', error);
-      return this.fallbackProvider.speak(text, config);
-    }
-    */
 
-    // Current implementation: fallback
-    return this.fallbackProvider.speak(text, config);
+        audio.onended = finish;
+
+        audio.onerror = () => {
+          console.warn('[ElevenLabs] Audio playback error — using Web Speech fallback');
+          this.pendingResolve = null;
+          this.cleanup();
+          this.fallback.speak(text, config).then(resolve).catch(resolve);
+        };
+
+        audio.play().catch((err) => {
+          console.warn('[ElevenLabs] play() failed — using Web Speech fallback:', err);
+          this.pendingResolve = null;
+          this.cleanup();
+          this.fallback.speak(text, config).then(resolve).catch(resolve);
+        });
+      });
+
+    } catch (err: any) {
+      if (err?.name === 'AbortError') {
+        // Cancelled by stop() — resolve cleanly so the manager isn't stuck
+        return;
+      }
+      console.warn('[ElevenLabs] Request failed — using Web Speech fallback:', err);
+      return this.fallback.speak(text, config);
+    }
   }
 
   stop(): void {
-    // TODO: Implement stopping ElevenLabs audio playback
-    // For now, use fallback
-    this.fallbackProvider.stop();
+    // 1. Abort any in-flight API fetch
+    if (this.currentAbortController) {
+      this.currentAbortController.abort();
+      this.currentAbortController = null;
+    }
+
+    // 2. Stop audio playback
+    if (this.currentAudio) {
+      this.currentAudio.pause();
+      this.currentAudio.currentTime = 0;
+    }
+
+    // 3. Resolve the pending promise so VoiceFeedbackManager doesn't get stuck
+    if (this.pendingResolve) {
+      this.pendingResolve();
+      this.pendingResolve = null;
+    }
+
+    // 4. Clean up resources
+    this.cleanup();
+
+    // 5. Also stop fallback in case it was speaking
+    this.fallback.stop();
   }
 
   setVolume(volume: number): void {
     this.config.volume = Math.max(0, Math.min(1, volume));
-    this.fallbackProvider.setVolume(volume);
+    if (this.currentAudio) {
+      this.currentAudio.volume = this.config.volume;
+    }
+    this.fallback.setVolume(volume);
   }
 
   isSupported(): boolean {
-    // Always supported due to fallback
-    return this.isElevenLabsAvailable || this.fallbackProvider.isSupported();
+    return true;
   }
 
   getConfig(): VoiceConfig {
@@ -148,40 +169,18 @@ export class ElevenLabsVoice implements IVoiceFeedback {
 
   updateConfig(config: Partial<ElevenLabsConfig>): void {
     this.config = { ...this.config, ...config };
-
-    // Update fallback provider
-    this.fallbackProvider.updateConfig({
-      rate: config.rate,
-      pitch: config.pitch,
-      volume: config.volume,
-      language: config.language,
-    });
-
-    // Re-check availability if API key changed
-    if (config.apiKey) {
-      this.checkElevenLabsAvailability();
-    }
+    this.fallback.updateConfig(config);
   }
 
-  /**
-   * Sets the ElevenLabs API key
-   */
-  setApiKey(apiKey: string): void {
-    this.config.apiKey = apiKey;
-    this.checkElevenLabsAvailability();
-  }
-
-  /**
-   * Sets the ElevenLabs voice ID
-   */
   setVoiceId(voiceId: string): void {
     this.config.voiceId = voiceId;
   }
 
-  /**
-   * Checks if currently using ElevenLabs or fallback
-   */
-  isUsingElevenLabs(): boolean {
-    return this.isElevenLabsAvailable;
+  private cleanup(): void {
+    if (this.currentObjectUrl) {
+      URL.revokeObjectURL(this.currentObjectUrl);
+      this.currentObjectUrl = null;
+    }
+    this.currentAudio = null;
   }
 }
