@@ -52,14 +52,12 @@ export function Navigation({ user }: NavigationProps) {
         <div className="px-2">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link href="http://localhost:3000" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-doom-primary to-doom-accent rounded-lg flex items-center justify-center">
-                <Droplet className="w-5 h-5 text-doom-bg" />
-              </div>
+            <a href="http://localhost:3002" className="flex items-center space-x-2">
+              <img src="/assets/logo.jpg" alt="What Now?" className="h-9 w-auto mix-blend-screen" />
               <span className="text-xl font-bold text-doom-text hidden sm:block">
-                Skin & Hair
+                What Now?
               </span>
-            </Link>
+            </a>
 
             {/* Desktop Menu */}
             <div className="hidden md:flex items-center space-x-6">

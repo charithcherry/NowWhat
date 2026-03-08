@@ -47,14 +47,10 @@ export function Navigation({ user }: NavigationProps) {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-doom-surface/95 backdrop-blur-sm border-b border-doom-primary/20">
         <div className="px-2">
           <div className="flex items-center justify-between h-16">
-            <Link href="#" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-doom-primary to-doom-accent rounded-lg flex items-center justify-center">
-                <UtensilsCrossed className="w-5 h-5 text-doom-bg" />
-              </div>
-              <span className="text-xl font-bold text-doom-text hidden sm:block">
-                Find Restaurants
-              </span>
-            </Link>
+            <a href="http://localhost:3004" className="flex items-center space-x-2">
+              <img src="/assets/logo.jpg" alt="What Now?" className="h-9 w-auto mix-blend-screen" />
+              <span className="text-xl font-bold text-doom-text hidden sm:block">What Now?</span>
+            </a>
 
             <div className="hidden md:flex items-center space-x-6">
               {menuItems.map((item) => {

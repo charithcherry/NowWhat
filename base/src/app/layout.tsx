@@ -5,7 +5,7 @@ import { AgentChat } from "@/components/AgentChat";
 import { getCurrentUser } from "@/lib/auth";
 
 export const metadata: Metadata = {
-  title: "WellBeing App - Your Complete Health Companion",
+  title: "What Now? — Your Complete Wellness Companion",
   description: "Track fitness, nutrition, skin health, and more - all connected in one unified platform",
   manifest: "/manifest.json",
   viewport: {

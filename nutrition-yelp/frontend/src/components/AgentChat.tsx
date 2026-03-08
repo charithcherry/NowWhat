@@ -52,6 +52,18 @@ export function AgentChat({ userId = "" }: { userId?: string }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, sending]);
 
+  const loadHistory = useCallback(async (uid: string) => {
+    try {
+      const res = await fetch(`/api/agent/history?userId=${uid}`);
+      const data = await res.json();
+      if (data.messages?.length > 0) {
+        setMessages(data.messages.slice(-20));
+      }
+    } catch {
+      // silently ignore — history is a nice-to-have
+    }
+  }, []);
+
   const buildProfile = useCallback(
     async (uid: string) => {
       setProfileLoading(true);
@@ -86,13 +98,13 @@ export function AgentChat({ userId = "" }: { userId?: string }) {
     if (dragState.current.moved) return;
     setIsOpen((prev) => {
       const opening = !prev;
-      // Always refresh profile on every open
       if (opening && userId) {
-        buildProfile(userId);
+        loadHistory(userId);   // restore previous messages
+        buildProfile(userId);  // rebuild fresh profile
       }
       return opening;
     });
-  }, [userId, buildProfile]);
+  }, [userId, buildProfile, loadHistory]);
 
   const sendMessage = useCallback(async () => {
     if (!input.trim() || sending || profileLoading) return;

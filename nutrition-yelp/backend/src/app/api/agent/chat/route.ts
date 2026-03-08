@@ -260,6 +260,19 @@ CRITICAL RULES:
       finalResponse = "I couldn't generate a response right now. Please try again.";
     }
 
+    // ── Persist both messages to MongoDB ──────────────────────
+    try {
+      const { client: saveClient, db: saveDb } = await getDb();
+      const now = new Date();
+      await saveDb.collection("agent_chats").insertMany([
+        { userId, role: "user",      content: message,       timestamp: now },
+        { userId, role: "assistant", content: finalResponse, timestamp: new Date(now.getTime() + 1) },
+      ]);
+      await saveClient.close();
+    } catch (saveErr) {
+      console.error("[Agent Chat] Failed to save messages:", saveErr);
+    }
+
     return NextResponse.json({ response: finalResponse });
   } catch (err) {
     console.error("Agent chat error:", err);
