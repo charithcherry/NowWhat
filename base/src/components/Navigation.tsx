@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, Dumbbell, Apple, Droplet, Moon, Pill, Activity, UserRound, LogOut } from "lucide-react";
+import { Menu, X, Dumbbell, Apple, Droplet, UtensilsCrossed, Activity, UserRound, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -28,9 +28,8 @@ interface NavigationProps {
 const menuItems: MenuItem[] = [
   { name: "Physical Fitness", href: "/fitness", icon: Dumbbell, color: "text-doom-primary" },
   { name: "Nutrition", href: "/nutrition", icon: Apple, color: "text-green-400" },
+  { name: "Find Restaurants", href: "/restaurants", icon: UtensilsCrossed, color: "text-yellow-400" },
   { name: "Skin & Hair Analysis", href: "http://localhost:3002", icon: Droplet, color: "text-blue-400", external: true },
-  { name: "Sleep Tracking", href: "/sleep", icon: Moon, color: "text-indigo-400" },
-  { name: "Supplements", href: "/supplements", icon: Pill, color: "text-orange-400" },
 ];
 
 export function Navigation({ user }: NavigationProps) {
