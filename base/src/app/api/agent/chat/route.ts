@@ -12,7 +12,8 @@ async function getDb() {
 
 // Collections Gemini is allowed to query + the userId field name each uses
 const ALLOWED_COLLECTIONS: Record<string, string> = {
-  sessions:                  "user_id",
+  fitness_sessions:          "user_id",
+  fitness_exercise_biomechanics: "user_id",
   nutrition_profiles:        "user_id",
   generated_recipes:         "user_id",
   saved_recipes:             "user_id",
@@ -56,7 +57,8 @@ const TOOLS = [
               description:
                 "Collection to query. " +
                 "'user_profiles' → DOB/height/weight/lifestyle. " +
-                "'sessions' → workout history. " +
+                "'fitness_sessions' → workout history. " +
+                "'fitness_exercise_biomechanics' → exercise biomechanics averages. " +
                 "'skin_logs' → skin analysis history. " +
                 "'hair_logs' → hair analysis history. " +
                 "'generated_recipes' → AI-generated recipes. " +
@@ -113,9 +115,9 @@ async function executeTool(
   const { client, db } = await getDb();
   try {
     const userIdField = ALLOWED_COLLECTIONS[collection];
-    const sortObj = sort_field
+    const sortObj: Record<string, 1 | -1> = sort_field
       ? { [sort_field]: sort_order === "asc" ? 1 : -1 }
-      : { _id: -1 as const };
+      : { _id: -1 };
 
     const results = await db
       .collection(collection)
@@ -197,7 +199,7 @@ USER ID: ${userId}
 CRITICAL RULES:
 1. You have a tool: get_user_data. USE IT whenever the user asks about their own data.
    - Asked about date of birth, age, height, weight? → call get_user_data("user_profiles")
-   - Asked about workouts or exercise sessions? → call get_user_data("sessions")
+   - Asked about workouts or exercise sessions? → call get_user_data("fitness_sessions")
    - Asked about recipes or food? → call get_user_data("generated_recipes") or "saved_recipes"
    - Asked about skin or hair? → call get_user_data("skin_logs") or "hair_logs"
    - Asked about restaurants or favorites? → call get_user_data("favorites")

@@ -12,7 +12,13 @@ import {
   VOICE_FEEDBACK_SETTINGS
 } from "@/lib/voice";
 import { useAuth } from "@/hooks/useAuth";
-import { precomputeFrame, compileAnalyzer, type AnalysisState, type AnalysisResult } from "@/lib/video-agents/precompute";
+import {
+  precomputeFrame,
+  compileAnalyzer,
+  type AnalysisState,
+  type AnalysisResult,
+  type ExerciseFrame,
+} from "@/lib/video-agents/precompute";
 import "./fitness.css";
 
 type AIStatus = 'idle' | 'generating' | 'ready' | 'error';
@@ -25,6 +31,157 @@ interface ChatMessage {
 interface ConvEntry {
   role: string;
   text: string;
+}
+
+type FitnessSessionStatus = 'completed' | 'stopped_early' | 'abandoned';
+
+interface SessionTracker {
+  startedAtMs: number | null;
+  frameCount: number;
+  validFrameCount: number;
+  formScoreSum: number;
+  postureScoreSum: number;
+  armPositionScoreSum: number;
+  visibilityScoreSum: number;
+  bestRepScore: number | null;
+  worstRepScore: number | null;
+  currentRepScoreSum: number;
+  currentRepFrameCount: number;
+  lastRepCount: number;
+  leftElbowSum: number;
+  rightElbowSum: number;
+  leftEshSum: number;
+  rightEshSum: number;
+  leftArmBodyAngleSum: number;
+  rightArmBodyAngleSum: number;
+  leftKneeSum: number;
+  rightKneeSum: number;
+  biomechanicsFrameCount: number;
+  persisted: boolean;
+}
+
+const BICEP_CURL_EXERCISE_PATTERN = /\bbicep\b|\bbiceps\b|\bcurl\b/i;
+
+function createEmptySessionTracker(): SessionTracker {
+  return {
+    startedAtMs: null,
+    frameCount: 0,
+    validFrameCount: 0,
+    formScoreSum: 0,
+    postureScoreSum: 0,
+    armPositionScoreSum: 0,
+    visibilityScoreSum: 0,
+    bestRepScore: null,
+    worstRepScore: null,
+    currentRepScoreSum: 0,
+    currentRepFrameCount: 0,
+    lastRepCount: 0,
+    leftElbowSum: 0,
+    rightElbowSum: 0,
+    leftEshSum: 0,
+    rightEshSum: 0,
+    leftArmBodyAngleSum: 0,
+    rightArmBodyAngleSum: 0,
+    leftKneeSum: 0,
+    rightKneeSum: 0,
+    biomechanicsFrameCount: 0,
+    persisted: false,
+  };
+}
+
+function clampScore(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value * 10) / 10));
+}
+
+function averageValue(sum: number, count: number): number {
+  return count > 0 ? Math.round((sum / count) * 10) / 10 : 0;
+}
+
+function averageScore(sum: number, count: number): number {
+  return clampScore(averageValue(sum, count));
+}
+
+function getSeverityPenalty(severity: 'LOW' | 'MEDIUM' | 'HIGH'): number {
+  switch (severity) {
+    case 'HIGH':
+      return 35;
+    case 'MEDIUM':
+      return 18;
+    default:
+      return 8;
+  }
+}
+
+function calculateArmBodyAngle(
+  shoulder: ExerciseFrame['landmarks'][number] | undefined,
+  elbow: ExerciseFrame['landmarks'][number] | undefined,
+  hip: ExerciseFrame['landmarks'][number] | undefined
+): number {
+  if (!shoulder || !elbow || !hip) {
+    return 0;
+  }
+
+  const radians =
+    Math.atan2(elbow.y - shoulder.y, elbow.x - shoulder.x) -
+    Math.atan2(hip.y - shoulder.y, hip.x - shoulder.x);
+
+  let angle = Math.abs(radians * (180 / Math.PI));
+
+  if (angle > 180) {
+    angle = 360 - angle;
+  }
+
+  if (angle > 90) {
+    angle = 180 - angle;
+  }
+
+  return angle;
+}
+
+function isBicepCurlExercise(exerciseName: string): boolean {
+  return BICEP_CURL_EXERCISE_PATTERN.test(exerciseName);
+}
+
+function deriveFrameScores(frame: ExerciseFrame, result: AnalysisResult) {
+  let postureScore = 100;
+  let armPositionScore = 100;
+  let visibilityScore = frame.meta.fullBodyVisible ? 100 : 55;
+
+  if (frame.meta.bodyHeightRatio < 0.55 || frame.meta.bodyHeightRatio > 0.92) {
+    visibilityScore -= 25;
+  }
+
+  if (frame.meta.orientation === 'unclear') {
+    visibilityScore -= 10;
+  }
+
+  for (const issue of result.formIssues || []) {
+    const penalty = getSeverityPenalty(issue.severity);
+    const bucket = issue.joint === 'spine' || issue.joint === 'neck' || issue.joint === 'hip' || issue.joint === 'knee'
+      ? 'posture'
+      : issue.joint === 'shoulder' || issue.joint === 'elbow' || issue.joint === 'arm'
+        ? 'arm'
+        : 'visibility';
+
+    if (bucket === 'posture') {
+      postureScore -= penalty;
+    } else if (bucket === 'arm') {
+      armPositionScore -= penalty;
+    } else {
+      visibilityScore -= penalty;
+    }
+  }
+
+  postureScore = clampScore(postureScore);
+  armPositionScore = clampScore(armPositionScore);
+  visibilityScore = clampScore(visibilityScore);
+
+  return {
+    formScore: averageScore(postureScore + armPositionScore + visibilityScore, 3),
+    postureScore,
+    armPositionScore,
+    visibilityScore,
+  };
 }
 
 export default function FitnessPage() {
@@ -99,6 +256,7 @@ export default function FitnessPage() {
   const aiAnalyzerFnRef = useRef<((frame: any, state: any) => AnalysisResult) | null>(null);
   const aiAnalyzerStateRef = useRef<AnalysisState>({ phase: 'neutral', reps: 0 });
   const [aiMetrics, setAiMetrics] = useState<AnalysisResult>({ reps: 0, phase: 'neutral', formIssues: [], isValidPosition: false });
+  const sessionTrackingRef = useRef<SessionTracker>(createEmptySessionTracker());
 
   // ── Job state ─────────────────────────────────────────────────────────────
   const currentJobIdRef = useRef<string | null>(null);
@@ -353,7 +511,117 @@ export default function FitnessPage() {
     await sendToMaster('Hello, I just opened the fitness assistant.');
   };
 
-  const exitAIMode = () => {
+  const persistSession = useCallback(async (sessionStatus: FitnessSessionStatus) => {
+    const tracker = sessionTrackingRef.current;
+    if (!tracker.startedAtMs || tracker.persisted) {
+      return;
+    }
+
+    tracker.persisted = true;
+
+    const exerciseName = aiExerciseNameRef.current.trim() || aiExerciseName.trim() || 'AI Exercise';
+    const endedAtMs = Date.now();
+    const repsCompleted = aiAnalyzerStateRef.current.reps ?? 0;
+    const sessionPayload = {
+      userId: user?.userId,
+      exerciseName,
+      startedAt: new Date(tracker.startedAtMs).toISOString(),
+      endedAt: new Date(endedAtMs).toISOString(),
+      durationSeconds: Math.max(1, Math.round((endedAtMs - tracker.startedAtMs) / 1000)),
+      repsCompleted,
+      sessionStatus,
+      avgFormScore: averageScore(tracker.formScoreSum, tracker.frameCount),
+      avgPostureScore: averageScore(tracker.postureScoreSum, tracker.frameCount),
+      avgArmPositionScore: averageScore(tracker.armPositionScoreSum, tracker.frameCount),
+      avgVisibilityScore: averageScore(tracker.visibilityScoreSum, tracker.frameCount),
+      validPositionPct: averageScore(tracker.validFrameCount * 100, tracker.frameCount),
+      bestRepScore: tracker.bestRepScore ?? 0,
+      worstRepScore: tracker.worstRepScore ?? 0,
+    };
+
+    const exerciseBiomechanics = tracker.biomechanicsFrameCount > 0
+      ? {
+          fitnessSessionId: '',
+          userId: user?.userId,
+          exerciseName,
+          avgLeftElbowAngle: averageValue(tracker.leftElbowSum, tracker.biomechanicsFrameCount),
+          avgRightElbowAngle: averageValue(tracker.rightElbowSum, tracker.biomechanicsFrameCount),
+          avgEshLeft: averageValue(tracker.leftEshSum, tracker.biomechanicsFrameCount),
+          avgEshRight: averageValue(tracker.rightEshSum, tracker.biomechanicsFrameCount),
+          avgArmBodyAngleLeft: averageValue(tracker.leftArmBodyAngleSum, tracker.biomechanicsFrameCount),
+          avgArmBodyAngleRight: averageValue(tracker.rightArmBodyAngleSum, tracker.biomechanicsFrameCount),
+          avgLeftKneeAngle: averageValue(tracker.leftKneeSum, tracker.biomechanicsFrameCount),
+          avgRightKneeAngle: averageValue(tracker.rightKneeSum, tracker.biomechanicsFrameCount),
+        }
+      : undefined;
+
+    try {
+      const response = await fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session: sessionPayload,
+          exerciseBiomechanics,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to persist workout session');
+      }
+
+      sessionTrackingRef.current = createEmptySessionTracker();
+    } catch (error) {
+      tracker.persisted = false;
+      console.error('Persist session error:', error);
+    }
+  }, [aiExerciseName, user?.userId]);
+
+  const updateSessionTracking = useCallback((frame: ExerciseFrame, result: AnalysisResult) => {
+    const tracker = sessionTrackingRef.current;
+    if (!tracker.startedAtMs || tracker.persisted) {
+      return;
+    }
+
+    const scores = deriveFrameScores(frame, result);
+    tracker.frameCount += 1;
+    tracker.formScoreSum += scores.formScore;
+    tracker.postureScoreSum += scores.postureScore;
+    tracker.armPositionScoreSum += scores.armPositionScore;
+    tracker.visibilityScoreSum += scores.visibilityScore;
+
+    if (result.isValidPosition) {
+      tracker.validFrameCount += 1;
+    }
+
+    tracker.currentRepScoreSum += scores.formScore;
+    tracker.currentRepFrameCount += 1;
+
+    if (result.reps > tracker.lastRepCount && tracker.currentRepFrameCount > 0) {
+      const repScore = averageScore(tracker.currentRepScoreSum, tracker.currentRepFrameCount);
+      tracker.bestRepScore = tracker.bestRepScore === null ? repScore : Math.max(tracker.bestRepScore, repScore);
+      tracker.worstRepScore = tracker.worstRepScore === null ? repScore : Math.min(tracker.worstRepScore, repScore);
+      tracker.lastRepCount = result.reps;
+      tracker.currentRepScoreSum = 0;
+      tracker.currentRepFrameCount = 0;
+    }
+
+    if (isBicepCurlExercise(aiExerciseNameRef.current || aiExerciseName)) {
+      tracker.biomechanicsFrameCount += 1;
+      tracker.leftElbowSum += frame.angles.leftElbow;
+      tracker.rightElbowSum += frame.angles.rightElbow;
+      tracker.leftEshSum += frame.angles.leftShoulder;
+      tracker.rightEshSum += frame.angles.rightShoulder;
+      tracker.leftKneeSum += frame.angles.leftKnee;
+      tracker.rightKneeSum += frame.angles.rightKnee;
+      tracker.leftArmBodyAngleSum += calculateArmBodyAngle(frame.landmarks[11], frame.landmarks[13], frame.landmarks[23]);
+      tracker.rightArmBodyAngleSum += calculateArmBodyAngle(frame.landmarks[12], frame.landmarks[14], frame.landmarks[24]);
+    }
+  }, [aiExerciseName]);
+
+  const exitAIMode = async () => {
+    if (isExerciseActiveRef.current) {
+      await persistSession('abandoned');
+    }
     stopListening();
     stopJobPolling();
     window.speechSynthesis?.cancel();
@@ -379,16 +647,20 @@ export default function FitnessPage() {
     setMessages([]);
     setVoiceTranscript('');
     setAiMetrics({ reps: 0, phase: 'neutral', formIssues: [], isValidPosition: false });
+    sessionTrackingRef.current = createEmptySessionTracker();
   };
 
   useEffect(() => {
     return () => {
+      if (isExerciseActiveRef.current) {
+        void persistSession('abandoned');
+      }
       stopListening();
       stopJobPolling();
       clearInterval(frameMonitorTimerRef.current);
       window.speechSynthesis?.cancel();
     };
-  }, []);
+  }, [persistSession]);
 
   // ── Pose handler ─────────────────────────────────────────────────────────
   const handlePoseDetected = useCallback((landmarks: any) => {
@@ -399,6 +671,7 @@ export default function FitnessPage() {
       aiAnalyzerStateRef.current.phase = (result.phase as any) ?? aiAnalyzerStateRef.current.phase;
       aiAnalyzerStateRef.current.reps  = result.reps ?? aiAnalyzerStateRef.current.reps;
       setAiMetrics(result);
+      updateSessionTracking(frame, result);
 
       if (voiceManagerRef.current && voiceEnabled) {
         const now = Date.now();
@@ -413,16 +686,21 @@ export default function FitnessPage() {
         }
       }
     } catch (e) { console.error('AI analyzer error:', e); }
-  }, [voiceEnabled]);
+  }, [updateSessionTracking, voiceEnabled]);
 
   // ── Exercise controls ─────────────────────────────────────────────────────
   const startExercise = () => {
     if (!cameraActive) { speakMaster("Please turn on the camera first."); return; }
     if (!aiAnalyzerFnRef.current) { speakMaster("Please choose an exercise first."); return; }
+    aiExerciseNameRef.current = aiExerciseName.trim() || aiExerciseNameRef.current.trim() || 'AI Exercise';
     stopListening();
     setIsExerciseActive(true);
     isExerciseActiveRef.current = true;
     aiAnalyzerStateRef.current = { phase: 'neutral', reps: 0 };
+    sessionTrackingRef.current = {
+      ...createEmptySessionTracker(),
+      startedAtMs: Date.now(),
+    };
     setAiMetrics({ reps: 0, phase: 'neutral', formIssues: [], isValidPosition: false });
     lastRepCountRef.current = 0;
     lastFormWarningRef.current = 0;
@@ -435,6 +713,7 @@ export default function FitnessPage() {
     setIsExerciseActive(false);
     isExerciseActiveRef.current = false;
     voiceManagerRef.current?.stopAndClear();
+    await persistSession(aiAnalyzerStateRef.current.reps > 0 ? 'completed' : 'stopped_early');
     masterStateRef.current = 'reviewing';
     setMasterState('reviewing');
     const reps = aiAnalyzerStateRef.current.reps;
@@ -445,29 +724,18 @@ export default function FitnessPage() {
 
   const resetExercise = () => {
     aiAnalyzerStateRef.current = { phase: 'neutral', reps: 0 };
+    sessionTrackingRef.current = isExerciseActiveRef.current
+      ? {
+          ...createEmptySessionTracker(),
+          startedAtMs: Date.now(),
+        }
+      : createEmptySessionTracker();
     setAiMetrics({ reps: 0, phase: 'neutral', formIssues: [], isValidPosition: false });
     lastRepCountRef.current = 0;
   };
 
   const startCamera = () => { setCameraCommand('start'); setTimeout(() => setCameraCommand(null), 100); };
   const stopCamera  = () => { setCameraCommand('stop');  setTimeout(() => setCameraCommand(null), 100); };
-
-  const saveSession = async () => {
-    try {
-      await fetch('/api/sessions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          exercise: aiExerciseName || 'AI Exercise',
-          reps: aiAnalyzerStateRef.current.reps,
-          duration: 0,
-          formScore: aiMetrics.isValidPosition ? 100 : 50,
-        }),
-      });
-      speak("Session saved!");
-      resetExercise();
-    } catch (e) { console.error('Save session error:', e); }
-  };
 
   // Job status label for display
   const jobStatusLabel = jobStatus ? ({

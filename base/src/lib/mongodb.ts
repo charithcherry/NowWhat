@@ -1,4 +1,4 @@
-import { MongoClient, Db } from 'mongodb';
+import { MongoClient, Db, ObjectId } from 'mongodb';
 
 if (!process.env.MONGODB_URI) {
   throw new Error('Please add your MongoDB URI to .env.local');
@@ -35,99 +35,208 @@ export async function getDatabase(): Promise<Db> {
   return client.db(process.env.MONGODB_DB || 'wellbeing_app');
 }
 
-// Helper functions for exercise sessions
-export interface ExerciseSession {
+const FITNESS_SESSIONS_COLLECTION = 'fitness_sessions';
+const FITNESS_EXERCISE_BIOMECHANICS_COLLECTION = 'fitness_exercise_biomechanics';
+
+export type FitnessSessionStatus = 'completed' | 'stopped_early' | 'abandoned';
+
+// Helper functions for fitness session summaries
+export interface FitnessSessionSummary {
   _id?: string;
   userId?: string;
-  exercise: string;
-  date: Date;
-  reps: number;
-  duration: number;
-  formScore: number;
-  postureScore: number;
-  armPositionScore: number;
-  visibilityScore: number;
-  avgElbowAngle: number;
-  notes?: string;
+  exerciseName: string;
+  startedAt: Date;
+  endedAt: Date;
+  durationSeconds: number;
+  repsCompleted: number;
+  sessionStatus: FitnessSessionStatus;
+  avgFormScore: number;
+  avgPostureScore: number;
+  avgArmPositionScore: number;
+  avgVisibilityScore: number;
+  validPositionPct: number;
+  bestRepScore: number;
+  worstRepScore: number;
 }
 
-interface ExerciseSessionDocument {
+interface FitnessSessionSummaryDocument {
   _id?: string;
   user_id?: string;
-  exercise: string;
-  date: Date;
-  reps: number;
-  duration: number;
-  form_score: number;
-  posture_score: number;
-  arm_position_score: number;
-  visibility_score: number;
-  avg_elbow_angle: number;
-  notes?: string;
+  exercise_name: string;
+  started_at: Date;
+  ended_at: Date;
+  duration_seconds: number;
+  reps_completed: number;
+  session_status: FitnessSessionStatus;
+  avg_form_score: number;
+  avg_posture_score: number;
+  avg_arm_position_score: number;
+  avg_visibility_score: number;
+  valid_position_pct: number;
+  best_rep_score: number;
+  worst_rep_score: number;
 }
 
-function serializeSession(doc: ExerciseSessionDocument & { _id?: unknown }): ExerciseSession {
+export interface ExerciseBiomechanicsSummary {
+  _id?: string;
+  fitnessSessionId: string;
+  userId?: string;
+  exerciseName: string;
+  avgLeftElbowAngle: number;
+  avgRightElbowAngle: number;
+  avgEshLeft: number;
+  avgEshRight: number;
+  avgArmBodyAngleLeft: number;
+  avgArmBodyAngleRight: number;
+  avgLeftKneeAngle: number;
+  avgRightKneeAngle: number;
+}
+
+interface ExerciseBiomechanicsSummaryDocument {
+  _id?: string;
+  fitness_session_id: ObjectId;
+  user_id?: string;
+  exercise_name: string;
+  avg_left_elbow_angle: number;
+  avg_right_elbow_angle: number;
+  avg_esh_left: number;
+  avg_esh_right: number;
+  avg_arm_body_angle_left: number;
+  avg_arm_body_angle_right: number;
+  avg_left_knee_angle: number;
+  avg_right_knee_angle: number;
+}
+
+function serializeFitnessSession(
+  doc: FitnessSessionSummaryDocument & { _id?: unknown }
+): FitnessSessionSummary {
   return {
     _id: doc._id ? String(doc._id) : undefined,
     userId: doc.user_id,
-    exercise: doc.exercise,
-    date: doc.date,
-    reps: doc.reps,
-    duration: doc.duration,
-    formScore: doc.form_score,
-    postureScore: doc.posture_score,
-    armPositionScore: doc.arm_position_score,
-    visibilityScore: doc.visibility_score,
-    avgElbowAngle: doc.avg_elbow_angle,
-    notes: doc.notes,
+    exerciseName: doc.exercise_name,
+    startedAt: doc.started_at,
+    endedAt: doc.ended_at,
+    durationSeconds: doc.duration_seconds,
+    repsCompleted: doc.reps_completed,
+    sessionStatus: doc.session_status,
+    avgFormScore: doc.avg_form_score,
+    avgPostureScore: doc.avg_posture_score,
+    avgArmPositionScore: doc.avg_arm_position_score,
+    avgVisibilityScore: doc.avg_visibility_score,
+    validPositionPct: doc.valid_position_pct,
+    bestRepScore: doc.best_rep_score,
+    worstRepScore: doc.worst_rep_score,
   };
 }
 
-export async function saveExerciseSession(session: ExerciseSession) {
+function serializeExerciseBiomechanics(
+  doc: ExerciseBiomechanicsSummaryDocument & { _id?: unknown }
+): ExerciseBiomechanicsSummary {
+  return {
+    _id: doc._id ? String(doc._id) : undefined,
+    fitnessSessionId: String(doc.fitness_session_id),
+    userId: doc.user_id,
+    exerciseName: doc.exercise_name,
+    avgLeftElbowAngle: doc.avg_left_elbow_angle,
+    avgRightElbowAngle: doc.avg_right_elbow_angle,
+    avgEshLeft: doc.avg_esh_left,
+    avgEshRight: doc.avg_esh_right,
+    avgArmBodyAngleLeft: doc.avg_arm_body_angle_left,
+    avgArmBodyAngleRight: doc.avg_arm_body_angle_right,
+    avgLeftKneeAngle: doc.avg_left_knee_angle,
+    avgRightKneeAngle: doc.avg_right_knee_angle,
+  };
+}
+
+export async function saveFitnessSessionSummary(session: FitnessSessionSummary) {
   const db = await getDatabase();
   const { _id, ...sessionData } = session;
-  const payload: ExerciseSessionDocument = {
+  const payload: FitnessSessionSummaryDocument = {
     user_id: sessionData.userId,
-    exercise: sessionData.exercise,
-    date: new Date(),
-    reps: sessionData.reps,
-    duration: sessionData.duration,
-    form_score: sessionData.formScore,
-    posture_score: sessionData.postureScore,
-    arm_position_score: sessionData.armPositionScore,
-    visibility_score: sessionData.visibilityScore,
-    avg_elbow_angle: sessionData.avgElbowAngle,
-    notes: sessionData.notes,
+    exercise_name: sessionData.exerciseName,
+    started_at: new Date(sessionData.startedAt),
+    ended_at: new Date(sessionData.endedAt),
+    duration_seconds: sessionData.durationSeconds,
+    reps_completed: sessionData.repsCompleted,
+    session_status: sessionData.sessionStatus,
+    avg_form_score: sessionData.avgFormScore,
+    avg_posture_score: sessionData.avgPostureScore,
+    avg_arm_position_score: sessionData.avgArmPositionScore,
+    avg_visibility_score: sessionData.avgVisibilityScore,
+    valid_position_pct: sessionData.validPositionPct,
+    best_rep_score: sessionData.bestRepScore,
+    worst_rep_score: sessionData.worstRepScore,
   };
-  const result = await db.collection<ExerciseSessionDocument>('sessions').insertOne(payload);
+  const result = await db
+    .collection<FitnessSessionSummaryDocument>(FITNESS_SESSIONS_COLLECTION)
+    .insertOne(payload);
   return result;
 }
 
-export async function getUserSessions(userId: string, limit: number = 10) {
+export async function saveExerciseBiomechanicsSummary(
+  summary: ExerciseBiomechanicsSummary
+) {
   const db = await getDatabase();
-  const sessions = await db
-    .collection<ExerciseSessionDocument>('sessions')
-    .find({ user_id: userId })
-    .sort({ date: -1 })
-    .limit(limit)
-    .toArray();
-  return sessions.map(serializeSession);
+  const { _id, fitnessSessionId, ...summaryData } = summary;
+  const payload: ExerciseBiomechanicsSummaryDocument = {
+    fitness_session_id: new ObjectId(fitnessSessionId),
+    user_id: summaryData.userId,
+    exercise_name: summaryData.exerciseName,
+    avg_left_elbow_angle: summaryData.avgLeftElbowAngle,
+    avg_right_elbow_angle: summaryData.avgRightElbowAngle,
+    avg_esh_left: summaryData.avgEshLeft,
+    avg_esh_right: summaryData.avgEshRight,
+    avg_arm_body_angle_left: summaryData.avgArmBodyAngleLeft,
+    avg_arm_body_angle_right: summaryData.avgArmBodyAngleRight,
+    avg_left_knee_angle: summaryData.avgLeftKneeAngle,
+    avg_right_knee_angle: summaryData.avgRightKneeAngle,
+  };
+  const result = await db
+    .collection<ExerciseBiomechanicsSummaryDocument>(
+      FITNESS_EXERCISE_BIOMECHANICS_COLLECTION
+    )
+    .insertOne(payload);
+  return result;
 }
 
-export async function getSessionStats(userId: string) {
+export async function getUserFitnessSessions(userId: string, limit: number = 10) {
+  const db = await getDatabase();
+  const sessions = await db
+    .collection<FitnessSessionSummaryDocument>(FITNESS_SESSIONS_COLLECTION)
+    .find({ user_id: userId })
+    .sort({ ended_at: -1 })
+    .limit(limit)
+    .toArray();
+  return sessions.map(serializeFitnessSession);
+}
+
+export async function getUserExerciseBiomechanics(userId: string, limit: number = 10) {
+  const db = await getDatabase();
+  const summaries = await db
+    .collection<ExerciseBiomechanicsSummaryDocument>(
+      FITNESS_EXERCISE_BIOMECHANICS_COLLECTION
+    )
+    .find({ user_id: userId })
+    .sort({ _id: -1 })
+    .limit(limit)
+    .toArray();
+  return summaries.map(serializeExerciseBiomechanics);
+}
+
+export async function getFitnessSessionStats(userId: string) {
   const db = await getDatabase();
   const stats = await db
-    .collection<ExerciseSessionDocument>('sessions')
+    .collection<FitnessSessionSummaryDocument>(FITNESS_SESSIONS_COLLECTION)
     .aggregate([
       { $match: { user_id: userId } },
       {
         $group: {
-          _id: '$exercise',
-          totalReps: { $sum: '$reps' },
+          _id: '$exercise_name',
+          totalReps: { $sum: '$reps_completed' },
           totalSessions: { $sum: 1 },
-          avgFormScore: { $avg: '$form_score' },
-          avgPostureScore: { $avg: '$posture_score' },
-          bestFormScore: { $max: '$form_score' },
+          avgFormScore: { $avg: '$avg_form_score' },
+          avgPostureScore: { $avg: '$avg_posture_score' },
+          bestFormScore: { $max: '$best_rep_score' },
         },
       },
     ])

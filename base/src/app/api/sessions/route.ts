@@ -1,24 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { saveExerciseSession, getUserSessions, type ExerciseSession } from '@/lib/mongodb';
+import {
+  saveExerciseBiomechanicsSummary,
+  saveFitnessSessionSummary,
+  getUserFitnessSessions,
+  type ExerciseBiomechanicsSummary,
+  type FitnessSessionSummary,
+} from '@/lib/mongodb';
 
 export async function POST(request: NextRequest) {
   try {
-    const session: ExerciseSession = await request.json();
+    const {
+      session,
+      exerciseBiomechanics,
+    }: {
+      session: FitnessSessionSummary;
+      exerciseBiomechanics?: ExerciseBiomechanicsSummary;
+    } = await request.json();
 
     // Validate required fields
-    if (!session.exercise || !session.reps) {
+    if (!session?.exerciseName || !session?.startedAt || !session?.endedAt) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    const result = await saveExerciseSession(session);
+    const result = await saveFitnessSessionSummary(session);
+    const sessionId = String(result.insertedId);
+
+    if (exerciseBiomechanics) {
+      await saveExerciseBiomechanicsSummary({
+        ...exerciseBiomechanics,
+        fitnessSessionId: sessionId,
+      });
+    }
 
     return NextResponse.json(
       {
         success: true,
-        sessionId: result.insertedId,
+        sessionId,
         message: 'Session saved successfully',
       },
       { status: 201 }
@@ -45,7 +65,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const sessions = await getUserSessions(userId, limit);
+    const sessions = await getUserFitnessSessions(userId, limit);
 
     return NextResponse.json({
       success: true,
