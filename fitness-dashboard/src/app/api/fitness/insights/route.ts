@@ -1,27 +1,69 @@
 export const dynamic = "force-dynamic";
 
-import { NextRequest, NextResponse } from "next/server";
-import { MOCK_INSIGHTS } from "@/modules/nutrition/data/mockRecipeSeeds";
-import { listWellnessInsights } from "@/modules/nutrition/repositories";
+import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
+import { getDatabase } from "@/lib/mongodb";
 
-export async function GET(request: NextRequest) {
-  const userId = request.nextUrl.searchParams.get("userId");
-  if (!userId) {
-    return NextResponse.json({ error: "userId is required" }, { status: 400 });
+interface FitnessInsight {
+  user_id: string;
+  insight_type: string;
+  title: string;
+  message: string;
+  confidence: "low" | "medium" | "high";
+  generated_at: Date;
+}
+
+function buildSeedInsights(userId: string): FitnessInsight[] {
+  const now = new Date();
+  return [
+    {
+      user_id: userId,
+      insight_type: "consistency",
+      title: "Start building a streak",
+      message: "Log a few sessions and the dashboard will start surfacing workout consistency trends.",
+      confidence: "low",
+      generated_at: now,
+    },
+    {
+      user_id: userId,
+      insight_type: "form",
+      title: "Form insights unlock with session data",
+      message: "Once you record form metrics, the dashboard can highlight where posture and movement quality are improving.",
+      confidence: "low",
+      generated_at: now,
+    },
+  ];
+}
+
+export async function GET() {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    const insights = await listWellnessInsights(userId);
+    const db = await getDatabase();
+    const insights = await db
+      .collection<FitnessInsight>("fitness_wellness_insights")
+      .find({ user_id: user.userId })
+      .sort({ generated_at: -1 })
+      .limit(10)
+      .toArray();
+
     if (insights.length === 0) {
-      return NextResponse.json({ success: true, insights: MOCK_INSIGHTS.map((insight) => ({ ...insight, user_id: userId })), seeded: true });
+      return NextResponse.json({
+        success: true,
+        insights: buildSeedInsights(user.userId),
+        seeded: true,
+      });
     }
 
     return NextResponse.json({ success: true, insights, seeded: false });
   } catch (error) {
-    console.error("Failed to fetch insights, returning seed:", error);
+    console.error("Failed to fetch fitness insights, returning seed data:", error);
     return NextResponse.json({
       success: true,
-      insights: MOCK_INSIGHTS.map((insight) => ({ ...insight, user_id: userId })),
+      insights: buildSeedInsights(user.userId),
       seeded: true,
       warning: "MongoDB unavailable; returning seed insights",
     });

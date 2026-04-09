@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentUser } from '@/lib/auth';
 import {
   buildSpecPrompts,
   callOpenAISpecGeneration,
@@ -9,6 +10,11 @@ import {
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const {
       exerciseName,
       promptVariant = 'reasoned_contract',

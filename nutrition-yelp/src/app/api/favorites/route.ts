@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/lib/mongodb";
 import { memoryFavorites } from "@/lib/memory-store";
 
@@ -23,7 +24,11 @@ function serializeFavorite(favorite: any) {
 }
 
 export async function GET(request: NextRequest) {
-  const userId = request.nextUrl.searchParams.get("userId") || "demo-user";
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
+  }
+  const userId = user.userId;
 
   try {
     const db = await getDb();
@@ -43,8 +48,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId = "demo-user", restaurantId, restaurantName, categories, location } =
-      await request.json();
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
+    }
+
+    const { restaurantId, restaurantName, categories, location } = await request.json();
+    const userId = user.userId;
 
     if (!restaurantId) {
       return NextResponse.json(

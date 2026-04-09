@@ -1,16 +1,16 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { createSavedRecipe, duplicateRecipe } from "@/modules/nutrition/repositories";
 
 export async function POST(request: NextRequest, context: { params: { id: string } }) {
   try {
-    const payload = (await request.json()) as Record<string, unknown>;
-    const userId = String(payload.user_id || "").trim();
-
-    if (!userId) {
-      return NextResponse.json({ error: "user_id is required" }, { status: 400 });
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const userId = user.userId;
 
     const recipe = await duplicateRecipe(userId, context.params.id);
     let saved = null;

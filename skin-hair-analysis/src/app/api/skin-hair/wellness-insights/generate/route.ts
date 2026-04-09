@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { getMockWellnessSignals } from "@/modules/skin-hair/data/mockWellnessSignals";
 import { formatWellnessInsightCard } from "@/modules/skin-hair/formatters";
 import {
@@ -12,12 +13,12 @@ import { generateWellnessInsights } from "@/modules/skin-hair/wellnessInsights";
 
 export async function POST(request: NextRequest) {
   try {
-    const payload = (await request.json()) as Record<string, unknown>;
-    const userId = String(payload.user_id || "").trim();
-
-    if (!userId) {
-      return NextResponse.json({ error: "user_id is required" }, { status: 400 });
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    await request.json();
+    const userId = user.userId;
 
     const [skinLogs, hairLogs] = await Promise.all([listSkinLogs(userId, 28), listHairLogs(userId, 28)]);
 

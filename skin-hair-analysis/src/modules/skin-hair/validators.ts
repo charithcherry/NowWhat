@@ -51,11 +51,3 @@ export function validateProfilePayload(payload: Record<string, unknown>) {
 export function validateImageType(fileType: string): boolean {
   return ["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(fileType.toLowerCase());
 }
-
-export function parseUserId(searchParams: URLSearchParams): string {
-  const userId = searchParams.get("userId");
-  if (!userId) {
-    throw new Error("userId is required");
-  }
-  return userId;
-}

@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { MOCK_PRODUCT_CATALOG, type CatalogProduct } from "@/modules/skin-hair/data/mockProducts";
 import { formatRecommendationCard } from "@/modules/skin-hair/formatters";
 import { discoverProductsWithGemini } from "@/modules/skin-hair/geminiProductDiscovery";
@@ -30,12 +31,12 @@ function mergeCatalog(primary: CatalogProduct[], fallback: CatalogProduct[]): Ca
 
 export async function POST(request: NextRequest) {
   try {
-    const payload = (await request.json()) as Record<string, unknown>;
-    const userId = String(payload.user_id || "").trim();
-
-    if (!userId) {
-      return NextResponse.json({ error: "user_id is required" }, { status: 400 });
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    await request.json();
+    const userId = user.userId;
 
     const [profile, lovedProducts] = await Promise.all([
       getSkinHairProfile(userId),

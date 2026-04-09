@@ -88,7 +88,7 @@ export default function EventsCalendar({ userId }: EventsCalendarProps) {
       const res = await fetch(apiUrl("/api/events"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, userId, displayName: "You" }),
+        body: JSON.stringify(form),
       });
       if (res.ok) {
         setShowCreate(false);
@@ -120,7 +120,7 @@ export default function EventsCalendar({ userId }: EventsCalendarProps) {
       await fetch(apiUrl("/api/events"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventId, userId, displayName: "You" }),
+        body: JSON.stringify({ eventId }),
       });
     } catch {
       setEvents((prev) =>

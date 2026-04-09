@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
+import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/lib/mongodb";
 
 const CORS = {
@@ -41,9 +42,13 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS });
+    }
+
     const {
-      userId = "demo-user",
-      displayName = "Anonymous",
+      displayName = user.name || "Anonymous",
       title,
       description,
       date,
@@ -51,6 +56,7 @@ export async function POST(request: NextRequest) {
       location,
       category,
     } = await request.json();
+    const userId = user.userId;
 
     if (!title?.trim() || !date || !time) {
       return NextResponse.json(
@@ -91,7 +97,13 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { eventId, userId = "demo-user", displayName = "You" } = await request.json();
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS });
+    }
+
+    const { eventId, displayName = user.name || "You" } = await request.json();
+    const userId = user.userId;
 
     if (!eventId) {
       return NextResponse.json(

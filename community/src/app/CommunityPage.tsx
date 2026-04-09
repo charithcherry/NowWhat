@@ -62,7 +62,7 @@ export default function CommunityPage({ userId, userName }: { userId: string; us
 
   async function loadConnections() {
     try {
-      const res = await fetch(apiUrl(`/api/connections?userId=${USER_ID}`));
+      const res = await fetch(apiUrl("/api/connections"));
       if (res.ok) {
         const data = await res.json();
         setConnectedIds(new Set(data.connectedIds));
@@ -85,7 +85,7 @@ export default function CommunityPage({ userId, userName }: { userId: string; us
       const res = await fetch(apiUrl("/api/connections"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fromUserId: USER_ID, toUserId, toDisplayName }),
+        body: JSON.stringify({ toUserId, toDisplayName }),
       });
       if (!res.ok) {
         setConnectedIds((prev) => {
@@ -127,7 +127,7 @@ export default function CommunityPage({ userId, userName }: { userId: string; us
       await fetch(apiUrl("/api/posts"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ postId, userId: USER_ID, action: "upvote" }),
+        body: JSON.stringify({ postId, action: "upvote" }),
       });
     } catch {
       setPosts((prev) =>

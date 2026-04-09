@@ -6,9 +6,15 @@ import {
   type ExerciseBiomechanicsSummary,
   type FitnessSessionSummary,
 } from '@/lib/mongodb';
+import { getCurrentUser } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const {
       session,
       exerciseBiomechanics,
@@ -25,13 +31,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await saveFitnessSessionSummary(session);
+    const result = await saveFitnessSessionSummary({
+      ...session,
+      userId: user.userId,
+    });
     const sessionId = String(result.insertedId);
 
     if (exerciseBiomechanics) {
       await saveExerciseBiomechanicsSummary({
         ...exerciseBiomechanics,
         fitnessSessionId: sessionId,
+        userId: user.userId,
       });
     }
 
@@ -54,18 +64,18 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const userId = searchParams.get('userId');
-    const limit = parseInt(searchParams.get('limit') || '10');
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'userId is required' },
-        { status: 400 }
-      );
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const sessions = await getUserFitnessSessions(userId, limit);
+    const searchParams = request.nextUrl.searchParams;
+    const requestedLimit = parseInt(searchParams.get('limit') || '10', 10);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.max(1, Math.min(requestedLimit, 50))
+      : 10;
+
+    const sessions = await getUserFitnessSessions(user.userId, limit);
 
     return NextResponse.json({
       success: true,

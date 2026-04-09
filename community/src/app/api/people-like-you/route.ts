@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/lib/mongodb";
 
 const CORS = {
@@ -40,7 +41,11 @@ function normalizePost(post: any) {
 }
 
 export async function GET(request: NextRequest) {
-  const userId = request.nextUrl.searchParams.get("userId") || "demo-user";
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS });
+  }
+  const userId = user.userId;
 
   try {
     const db = await getDb();

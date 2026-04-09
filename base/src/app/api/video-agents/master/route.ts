@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentUser } from '@/lib/auth';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
 const MODEL = 'gemini-2.5-flash';
@@ -73,6 +74,11 @@ async function callMasterGemini(prompt: string): Promise<string> {
 }
 
 export async function POST(req: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const {
     userMessage = '',
     conversationHistory = [],

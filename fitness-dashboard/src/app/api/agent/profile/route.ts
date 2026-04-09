@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MongoClient, ObjectId } from "mongodb";
+import { getCurrentUser } from "@/lib/auth";
 
 async function getDb() {
   const client = new MongoClient(process.env.MONGODB_URI!, {
@@ -35,10 +36,11 @@ async function geminiCall(prompt: string): Promise<string> {
 }
 
 export async function GET(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get("userId");
-  if (!userId) {
-    return NextResponse.json({ error: "userId required" }, { status: 400 });
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const userId = user.userId;
 
   const { client, db } = await getDb();
 
@@ -125,7 +127,7 @@ export async function GET(req: NextRequest) {
     console.log(`🧴 Skin:           ${skinHairProfile ? `type=${skinHairProfile.skin_type}, scalp=${skinHairProfile.scalp_type}, concerns=${skinHairProfile.concerns?.join(", ")}` : "not found"}`);
     console.log(`💄 Loved Products (${lovedProducts.length}): ${lovedProducts.map((p:any) => `${p.product_name} (${p.brand})`).join(", ") || "none"}`);
     console.log(`❤️  Favorites (${favorites.length}):   ${favorites.map((f:any) => `${f.restaurantName}`).join(", ") || "none"}`);
-    console.log(`🔍 Searches (${clickHistory.length}):   ${[...new Set(clickHistory.filter((c:any) => c.action==="search" && c.metadata?.category !== "__liked").map((c:any) => c.metadata?.category))].join(", ") || "none"}`);
+    console.log(`🔍 Searches (${clickHistory.length}):   ${Array.from(new Set(clickHistory.filter((c:any) => c.action==="search" && c.metadata?.category !== "__liked").map((c:any) => c.metadata?.category))).join(", ") || "none"}`);
     console.log(`🧠 Nutrition Insights (${nutritionInsights.length}): ${nutritionInsights.map((n:any) => n.insight_text || n.insight).join(" | ") || "none"}`);
     console.log(`🍽️  Yelp Insights (${yelpInsights.length}): ${yelpInsights.map((y:any) => y.insight).join(" | ") || "none"}`);
     console.log(`👥 Community Posts (${communityPosts.length}): ${communityPosts.map((p:any) => p.title).join(", ") || "none"}`);
@@ -138,7 +140,7 @@ export async function GET(req: NextRequest) {
     // ── Build prompt sections ─────────────────────────────────
 
     // ── Age calculation ───────────────────────────────────────
-    function calculateAge(dob: string): number | null {
+    const calculateAge = (dob: string): number | null => {
       if (!dob) return null;
       const birth = new Date(dob);
       if (isNaN(birth.getTime())) return null;
@@ -149,27 +151,27 @@ export async function GET(req: NextRequest) {
         (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate());
       if (notYetHadBirthday) age--;
       return age;
-    }
+    };
     const age = calculateAge(userProfile?.dateOfBirth);
 
     const favCuisines = favorites.length > 0
-      ? [...new Set(favorites.flatMap((f: any) => f.categories?.map((c: any) => c.title) || []))]
+      ? Array.from(new Set(favorites.flatMap((f: any) => f.categories?.map((c: any) => c.title) || [])))
       : [];
 
-    const searchedCategories = [...new Set(
+    const searchedCategories = Array.from(new Set(
       clickHistory
         .filter((c: any) => c.action === "search" && c.metadata?.category && !["all","__liked"].includes(c.metadata.category))
         .map((c: any) => c.metadata.category)
-    )];
+    ));
 
-    const searchedLocations = [...new Set(
+    const searchedLocations = Array.from(new Set(
       clickHistory
         .filter((c: any) => c.action === "search" && c.metadata?.location)
         .map((c: any) => c.metadata.location)
-    )];
+    ));
 
     const recipeTitles = generatedRecipes.map((r: any) => r.title);
-    const recipeTags = [...new Set(generatedRecipes.flatMap((r: any) => r.tags || []))];
+    const recipeTags = Array.from(new Set(generatedRecipes.flatMap((r: any) => r.tags || [])));
     const latestYelpInsight = yelpInsights[0]?.insight || null;
 
     const prompt = `You are building a personalized user profile context for a wellness AI assistant chatbot called WellBeing Agent.

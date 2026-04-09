@@ -1,14 +1,16 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { MOCK_INSIGHTS } from "@/modules/nutrition/data/mockRecipeSeeds";
 import { listWellnessInsights } from "@/modules/nutrition/repositories";
 
 export async function GET(request: NextRequest) {
-  const userId = request.nextUrl.searchParams.get("userId");
-  if (!userId) {
-    return NextResponse.json({ error: "userId is required" }, { status: 400 });
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const userId = user.userId;
 
   try {
     const insights = await listWellnessInsights(userId);

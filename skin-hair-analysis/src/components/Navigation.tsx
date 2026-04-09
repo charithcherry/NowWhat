@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Menu, X, Droplet, Home, Dumbbell, Apple, UtensilsCrossed, UserRound, LogOut, Users2 } from "lucide-react";
+import { Menu, X, Droplet, Home, Dumbbell, Apple, UtensilsCrossed, Activity, UserRound, LogOut, Users2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 interface User {
@@ -17,6 +17,7 @@ interface NavigationProps {
 
 const menuItems = [
   { name: "Home", href: process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000", icon: Home, color: "text-doom-primary" },
+  { name: "Dashboard", href: process.env.NEXT_PUBLIC_FITNESS_URL || "http://localhost:3005", icon: Activity, color: "text-doom-accent" },
   { name: "Physical Fitness", href: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/fitness`, icon: Dumbbell, color: "text-doom-primary" },
   { name: "Nutrition", href: process.env.NEXT_PUBLIC_NUTRITION_URL || "http://localhost:3003", icon: Apple, color: "text-green-400" },
   { name: "Find Restaurants", href: process.env.NEXT_PUBLIC_RESTAURANTS_URL || "http://localhost:3004", icon: UtensilsCrossed, color: "text-yellow-400" },

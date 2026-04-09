@@ -18,8 +18,8 @@ async function safeJson<T>(response: Response): Promise<T> {
   return body as T;
 }
 
-export async function fetchProfile(userId: string): Promise<ProfilePayload | null> {
-  const response = await fetch(`/api/skin-hair/profile?userId=${encodeURIComponent(userId)}`, {
+export async function fetchProfile(_userId: string): Promise<ProfilePayload | null> {
+  const response = await fetch("/api/skin-hair/profile", {
     cache: "no-store",
   });
 
@@ -28,26 +28,27 @@ export async function fetchProfile(userId: string): Promise<ProfilePayload | nul
 }
 
 export async function saveProfile(profile: ProfilePayload): Promise<ProfilePayload> {
+  const { user_id: _userId, ...profilePayload } = profile;
   const response = await fetch("/api/skin-hair/profile", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(profile),
+    body: JSON.stringify(profilePayload),
   });
 
   const body = await safeJson<{ profile: ProfilePayload }>(response);
   return body.profile;
 }
 
-export async function fetchSummary(userId: string): Promise<SummaryPayload> {
-  const response = await fetch(`/api/skin-hair/summary?userId=${encodeURIComponent(userId)}`, {
+export async function fetchSummary(_userId: string): Promise<SummaryPayload> {
+  const response = await fetch("/api/skin-hair/summary", {
     cache: "no-store",
   });
   const body = await safeJson<{ summary: SummaryPayload }>(response);
   return body.summary;
 }
 
-export async function fetchLovedProducts(userId: string): Promise<LovedProductPayload[]> {
-  const response = await fetch(`/api/skin-hair/loved-products?userId=${encodeURIComponent(userId)}`, {
+export async function fetchLovedProducts(_userId: string): Promise<LovedProductPayload[]> {
+  const response = await fetch("/api/skin-hair/loved-products", {
     cache: "no-store",
   });
   const body = await safeJson<{ products: LovedProductPayload[] }>(response);
@@ -55,23 +56,21 @@ export async function fetchLovedProducts(userId: string): Promise<LovedProductPa
 }
 
 export async function createLovedProduct(product: CreateLovedProductPayload): Promise<LovedProductPayload> {
+  const { user_id: _userId, ...productPayload } = product;
   const response = await fetch("/api/skin-hair/loved-products", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(product),
+    body: JSON.stringify(productPayload),
   });
 
   const body = await safeJson<{ product: LovedProductPayload }>(response);
   return body.product;
 }
 
-export async function removeLovedProduct(userId: string, productId: string): Promise<void> {
-  const response = await fetch(
-    `/api/skin-hair/loved-products/${encodeURIComponent(productId)}?userId=${encodeURIComponent(userId)}`,
-    {
-      method: "DELETE",
-    },
-  );
+export async function removeLovedProduct(_userId: string, productId: string): Promise<void> {
+  const response = await fetch(`/api/skin-hair/loved-products/${encodeURIComponent(productId)}`, {
+    method: "DELETE",
+  });
 
   await safeJson<{ success: boolean }>(response);
 }
@@ -80,10 +79,11 @@ export async function updateLovedProduct(
   productId: string,
   patch: Partial<CreateLovedProductPayload> & { user_id: string },
 ): Promise<LovedProductPayload> {
+  const { user_id: _userId, ...patchPayload } = patch;
   const response = await fetch(`/api/skin-hair/loved-products/${encodeURIComponent(productId)}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(patch),
+    body: JSON.stringify(patchPayload),
   });
 
   const body = await safeJson<{ product: LovedProductPayload }>(response);
@@ -96,7 +96,6 @@ export async function analyzeImage(params: {
   file: File;
 }): Promise<AnalysisPayload> {
   const formData = new FormData();
-  formData.append("user_id", params.userId);
   formData.append("target", params.target);
   formData.append("image", params.file);
 
@@ -109,8 +108,8 @@ export async function analyzeImage(params: {
   return body.analysis;
 }
 
-export async function fetchRecommendations(userId: string): Promise<RecommendationPayload[]> {
-  const response = await fetch(`/api/skin-hair/recommendations?userId=${encodeURIComponent(userId)}`, {
+export async function fetchRecommendations(_userId: string): Promise<RecommendationPayload[]> {
+  const response = await fetch("/api/skin-hair/recommendations", {
     cache: "no-store",
   });
 
@@ -118,19 +117,19 @@ export async function fetchRecommendations(userId: string): Promise<Recommendati
   return body.recommendations;
 }
 
-export async function generateRecommendations(userId: string): Promise<RecommendationPayload[]> {
+export async function generateRecommendations(_userId: string): Promise<RecommendationPayload[]> {
   const response = await fetch("/api/skin-hair/recommendations/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: userId }),
+    body: JSON.stringify({}),
   });
 
   const body = await safeJson<{ recommendations: RecommendationPayload[] }>(response);
   return body.recommendations;
 }
 
-export async function fetchWellnessInsights(userId: string): Promise<WellnessInsightPayload[]> {
-  const response = await fetch(`/api/skin-hair/wellness-insights?userId=${encodeURIComponent(userId)}`, {
+export async function fetchWellnessInsights(_userId: string): Promise<WellnessInsightPayload[]> {
+  const response = await fetch("/api/skin-hair/wellness-insights", {
     cache: "no-store",
   });
 
@@ -138,11 +137,11 @@ export async function fetchWellnessInsights(userId: string): Promise<WellnessIns
   return body.insights;
 }
 
-export async function generateWellnessInsights(userId: string): Promise<WellnessInsightPayload[]> {
+export async function generateWellnessInsights(_userId: string): Promise<WellnessInsightPayload[]> {
   const response = await fetch("/api/skin-hair/wellness-insights/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: userId }),
+    body: JSON.stringify({}),
   });
 
   const body = await safeJson<{ insights: WellnessInsightPayload[] }>(response);

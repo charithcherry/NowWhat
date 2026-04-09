@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MongoClient, ObjectId } from "mongodb";
+import { getCurrentUser } from "@/lib/auth";
 
 async function getDb() {
   const client = new MongoClient(process.env.MONGODB_URI!, {
@@ -35,10 +36,11 @@ async function geminiCall(prompt: string): Promise<string> {
 }
 
 export async function GET(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get("userId");
-  if (!userId) {
-    return NextResponse.json({ error: "userId required" }, { status: 400 });
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const userId = user.userId;
 
   const { client, db } = await getDb();
 

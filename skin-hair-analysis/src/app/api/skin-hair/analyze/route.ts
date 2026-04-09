@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { analyzeHairImage, analyzeSkinImage } from "@/modules/skin-hair/analysis";
 import { createHairLog, createSkinLog, getSkinHairProfile } from "@/modules/skin-hair/repositories";
 import { formatHairResultCard, formatSkinResultCard } from "@/modules/skin-hair/formatters";
@@ -14,14 +15,19 @@ function toBase64(bytes: ArrayBuffer): string {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const formData = await request.formData();
-    const userId = String(formData.get("user_id") || "").trim();
+    const userId = user.userId;
     const target = String(formData.get("target") || "").trim().toLowerCase();
     const file = formData.get("image");
 
-    if (!userId || !target || !(file instanceof File)) {
+    if (!target || !(file instanceof File)) {
       return NextResponse.json(
-        { error: "user_id, target (skin|hair), and image file are required" },
+        { error: "target (skin|hair) and image file are required" },
         { status: 400 },
       );
     }

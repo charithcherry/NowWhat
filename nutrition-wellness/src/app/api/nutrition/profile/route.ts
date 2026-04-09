@@ -1,16 +1,18 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { getNutritionProfile, upsertNutritionProfile } from "@/modules/nutrition/repositories";
 import { trackNutritionActivitySafely } from "@/modules/nutrition/services/insightMemory";
 import { validateProfilePayload } from "@/modules/nutrition/validators";
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.nextUrl.searchParams.get("userId");
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 });
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const userId = user.userId;
 
     const profile = await getNutritionProfile(userId);
     return NextResponse.json({ success: true, profile });
@@ -22,7 +24,15 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const payload = (await request.json()) as Record<string, unknown>;
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const payload = {
+      ...((await request.json()) as Record<string, unknown>),
+      user_id: user.userId,
+    };
     const validated = validateProfilePayload(payload);
 
     const profile = await upsertNutritionProfile(validated.user_id, {

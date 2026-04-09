@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
-import { getSessionToken } from '@/lib/auth';
+import { getSessionToken, setAuthCookie } from '@/lib/auth';
 
 function getAllowedOrigins() {
   const configuredOrigins = [
-    process.env.NEXT_PUBLIC_BASE_URL,
     process.env.NEXT_PUBLIC_FITNESS_URL,
     process.env.NEXT_PUBLIC_NUTRITION_URL,
     process.env.NEXT_PUBLIC_RESTAURANTS_URL,
@@ -80,15 +79,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid or expired handoff token' }, { status: 401 });
       }
 
-      const response = NextResponse.redirect(new URL(redirectPath, request.nextUrl.origin));
-      response.cookies.set('auth_token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7,
-        path: '/',
-      });
-      return response;
+      await setAuthCookie(token);
+      return NextResponse.redirect(new URL(redirectPath, request.nextUrl.origin));
     }
 
     if (!target) {
@@ -120,6 +112,7 @@ export async function GET(request: NextRequest) {
     const handoffUrl = new URL('/api/auth/handoff', targetUrl.origin);
     handoffUrl.searchParams.set('token', sessionToken);
     handoffUrl.searchParams.set('redirect', redirectPath);
+
     return NextResponse.redirect(handoffUrl);
   } catch (error) {
     console.error('Auth handoff error:', error);

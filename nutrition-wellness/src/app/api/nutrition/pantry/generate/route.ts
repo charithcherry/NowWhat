@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { getNutritionProfile, replacePantryItems } from "@/modules/nutrition/repositories";
 import { trackNutritionActivitySafely } from "@/modules/nutrition/services/insightMemory";
 import { generatePantryMeals } from "@/modules/nutrition/services/pantryGenerator";
@@ -8,7 +9,15 @@ import { validatePantryGeneratePayload } from "@/modules/nutrition/validators";
 
 export async function POST(request: NextRequest) {
   try {
-    const payload = (await request.json()) as Record<string, unknown>;
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const payload = {
+      ...((await request.json()) as Record<string, unknown>),
+      user_id: user.userId,
+    };
     const validated = validatePantryGeneratePayload(payload);
 
     const profile = await getNutritionProfile(validated.user_id);

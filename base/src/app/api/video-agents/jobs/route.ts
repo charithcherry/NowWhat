@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
+import { getCurrentUser } from '@/lib/auth';
+import { getJobsForUser } from '@/lib/video-agents/jobQueue';
 
 export async function GET() {
-  // Access the global job queue directly
-  const jobs: Map<string, any> = (global as any)._jobQueue ?? new Map();
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
-  const list = Array.from(jobs.values())
+  const list = getJobsForUser(user.userId)
     .sort((a, b) => b.createdAt - a.createdAt) // newest first
     .map(j => ({
       id: j.id,
