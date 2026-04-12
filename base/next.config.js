@@ -40,6 +40,15 @@ const nextConfig = {
         source: '/skin/:path*',
         destination: 'http://localhost:3002/:path*',
       },
+      // Community Next app (UI + /community/api/*) on one upstream port — browse via http://localhost:3000/community
+      {
+        source: '/community',
+        destination: 'http://localhost:3006/community',
+      },
+      {
+        source: '/community/:path*',
+        destination: 'http://localhost:3006/community/:path*',
+      },
     ];
   },
 };

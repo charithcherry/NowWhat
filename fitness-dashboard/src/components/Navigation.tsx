@@ -30,7 +30,7 @@ const menuItems: MenuItem[] = [
   { name: "Nutrition", href: "http://localhost:3003", icon: Apple, color: "text-green-400", external: true },
   { name: "Find Restaurants", href: "http://localhost:3004", icon: UtensilsCrossed, color: "text-yellow-400", external: true },
   { name: "Skin & Hair Analysis", href: "http://localhost:3002", icon: Droplet, color: "text-blue-400", external: true },
-  { name: "Community", href: "http://localhost:3006", icon: Users2, color: "text-pink-400", external: true },
+  { name: "Community", href: "http://localhost:3000/community", icon: Users2, color: "text-pink-400", external: true },
 ];
 
 export function Navigation({ user }: NavigationProps) {

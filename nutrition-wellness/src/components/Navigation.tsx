@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Menu, X, Apple, Home, Dumbbell, UtensilsCrossed, Droplet, UserRound, LogOut } from "lucide-react";
+import { Menu, X, Apple, Home, Dumbbell, UtensilsCrossed, Droplet, UserRound, LogOut, Users2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 interface User {
@@ -20,6 +20,7 @@ const menuItems = [
   { name: "Physical Fitness", href: "http://localhost:3000/fitness", icon: Dumbbell, color: "text-doom-primary" },
   { name: "Find Restaurants", href: "http://localhost:3004", icon: UtensilsCrossed, color: "text-yellow-400" },
   { name: "Skin & Hair", href: "http://localhost:3002", icon: Droplet, color: "text-blue-400" },
+  { name: "Community", href: "http://localhost:3000/community", icon: Users2, color: "text-pink-400" },
 ];
 
 export function Navigation({ user }: NavigationProps) {

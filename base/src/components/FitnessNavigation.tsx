@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, Dumbbell, Apple, Droplet, UtensilsCrossed, Home, UserRound, LogOut } from "lucide-react";
+import { Menu, X, Dumbbell, Apple, Droplet, UtensilsCrossed, Home, UserRound, LogOut, Users2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 
@@ -29,6 +29,7 @@ const menuItems: MenuItem[] = [
   { name: "Nutrition", href: "http://localhost:3003", icon: Apple, color: "text-green-400", external: true },
   { name: "Find Restaurants", href: "http://localhost:3004", icon: UtensilsCrossed, color: "text-yellow-400", external: true },
   { name: "Skin & Hair Analysis", href: "http://localhost:3002", icon: Droplet, color: "text-blue-400", external: true },
+  { name: "Community", href: "http://localhost:3000/community", icon: Users2, color: "text-pink-400", external: true },
 ];
 
 export function FitnessNavigation({ user }: FitnessNavigationProps) {
