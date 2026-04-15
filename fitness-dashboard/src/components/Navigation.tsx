@@ -25,12 +25,14 @@ interface NavigationProps {
   user?: AuthUser | null;
 }
 
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
 const menuItems: MenuItem[] = [
-  { name: "Physical Fitness", href: "http://localhost:3000/fitness", icon: Dumbbell, color: "text-doom-primary", external: true },
-  { name: "Nutrition", href: "http://localhost:3003", icon: Apple, color: "text-green-400", external: true },
-  { name: "Find Restaurants", href: "http://localhost:3004", icon: UtensilsCrossed, color: "text-yellow-400", external: true },
-  { name: "Skin & Hair Analysis", href: "http://localhost:3002", icon: Droplet, color: "text-blue-400", external: true },
-  { name: "Community", href: "http://localhost:3006", icon: Users2, color: "text-pink-400", external: true },
+  { name: "Physical Fitness", href: `${BASE_URL}/fitness`, icon: Dumbbell, color: "text-doom-primary", external: true },
+  { name: "Nutrition", href: process.env.NEXT_PUBLIC_NUTRITION_URL || "http://localhost:3003", icon: Apple, color: "text-green-400", external: true },
+  { name: "Find Restaurants", href: process.env.NEXT_PUBLIC_YELP_URL || "http://localhost:3004", icon: UtensilsCrossed, color: "text-yellow-400", external: true },
+  { name: "Skin & Hair Analysis", href: process.env.NEXT_PUBLIC_SKIN_URL || "http://localhost:3002", icon: Droplet, color: "text-blue-400", external: true },
+  { name: "Community", href: process.env.NEXT_PUBLIC_COMMUNITY_URL || "http://localhost:3006", icon: Users2, color: "text-pink-400", external: true },
 ];
 
 export function Navigation({ user }: NavigationProps) {
@@ -41,18 +43,17 @@ export function Navigation({ user }: NavigationProps) {
 
   const handleLogout = async () => {
     try {
-      await fetch("http://localhost:3000/api/auth/logout", { 
+      await fetch(`${BASE_URL}/api/auth/logout`, { 
         method: "POST",
         credentials: "include"
       });
     } catch (err) {
       console.error("Logout API failed:", err);
     } finally {
-      // Clear all agent profile memory from localStorage
       Object.keys(localStorage)
         .filter((k) => k.startsWith("wb_agent_profile_"))
         .forEach((k) => localStorage.removeItem(k));
-      window.location.href = "http://localhost:3000";
+      window.location.href = BASE_URL;
     }
   };
 
@@ -63,8 +64,8 @@ export function Navigation({ user }: NavigationProps) {
         <div className="px-2">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <a href="http://localhost:3000/" className="flex items-center space-x-2">
-              <img src="http://localhost:3000/assets/logo.jpg" alt="What Now?" className="h-9 w-auto mix-blend-screen" />
+            <a href={BASE_URL} className="flex items-center space-x-2">
+              <img src={`${BASE_URL}/assets/logo.jpg`} alt="What Now?" className="h-9 w-auto mix-blend-screen" />
               <span className="text-xl font-bold text-doom-text hidden sm:block">What Now?</span>
             </a>
 
@@ -103,7 +104,7 @@ export function Navigation({ user }: NavigationProps) {
                   <div className="h-8 w-px bg-doom-primary/30" />
 
                   {/* Profile Section */}
-                  <a href="http://localhost:3000/profile" className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-doom-bg/30 hover:bg-doom-bg/50 transition-colors">
+                  <a href={`${BASE_URL}/profile`} className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-doom-bg/30 hover:bg-doom-bg/50 transition-colors">
                     <UserRound className="w-5 h-5 text-doom-primary" />
                     <span className="text-sm font-medium text-doom-text">{user.name}</span>
                   </a>

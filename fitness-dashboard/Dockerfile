@@ -10,6 +10,8 @@ ENV MONGODB_DB=placeholder
 ENV JWT_SECRET=placeholder
 ENV GEMINI_API_KEY=placeholder
 ENV NEXT_PUBLIC_APP_URL=https://placeholder.run.app
+ENV NEXT_PUBLIC_BASE_URL=https://placeholder.run.app
+ENV BASE_URL=https://placeholder.run.app
 RUN npm run build
 
 FROM node:20-alpine AS runner
