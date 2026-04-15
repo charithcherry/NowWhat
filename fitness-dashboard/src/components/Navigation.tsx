@@ -65,7 +65,7 @@ export function Navigation({ user }: NavigationProps) {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <a href={BASE_URL} className="flex items-center space-x-2">
-              <img src={`${BASE_URL}/assets/logo.jpg`} alt="What Now?" className="h-9 w-auto mix-blend-screen" />
+              <img src="/assets/logo.jpg" alt="What Now?" className="h-9 w-auto mix-blend-screen" />
               <span className="text-xl font-bold text-doom-text hidden sm:block">What Now?</span>
             </a>
 
