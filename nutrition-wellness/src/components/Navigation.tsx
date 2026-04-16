@@ -18,6 +18,30 @@ interface NavigationProps {
 
 
 export function Navigation({ user }: NavigationProps) {
+  const [urls, setUrls] = useState({
+    base: "http://localhost:3000",
+    nutrition: "http://localhost:3003",
+    yelp: "http://localhost:3004",
+    skin: "http://localhost:3002",
+    community: "http://localhost:3006",
+  });
+
+  useEffect(() => {
+    fetch('/api/config', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data) => setUrls((prev) => ({ ...prev, ...data })))
+      .catch(console.error);
+  }, []);
+
+  const getHrefWrapper = (urlPattern: string) => `/api/sso?target=${encodeURIComponent(urlPattern)}`;
+
+  const menuItems = [
+    { name: "Home", href: urls.base, icon: Home, color: "text-doom-primary" },
+    { name: "Physical Fitness", href: `${urls.base}/fitness`, icon: Dumbbell, color: "text-doom-primary" },
+    { name: "Find Restaurants", href: urls.yelp, icon: UtensilsCrossed, color: "text-yellow-400" },
+    { name: "Skin & Hair", href: urls.skin, icon: Droplet, color: "text-blue-400" },
+  ];
+
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
