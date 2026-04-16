@@ -25,17 +25,36 @@ interface NavigationProps {
   user?: AuthUser | null;
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+  export function Navigation({ user }: NavigationProps) {
+    const [urls, setUrls] = useState<{
+      base: string;
+      nutrition: string;
+      yelp: string;
+      skin: string;
+      community: string;
+    }>({
+      base: "http://localhost:3000",
+      nutrition: "http://localhost:3003",
+      yelp: "http://localhost:3004",
+      skin: "http://localhost:3002",
+      community: "http://localhost:3006"
+    });
+  
+    useEffect(() => {
+      fetch('/api/config', { cache: 'no-store' })
+        .then(res => res.json())
+        .then(data => setUrls(prev => ({...prev, ...data})))
+        .catch(console.error);
+    }, []);
+  
+    const menuItems: MenuItem[] = [
+      { name: "Physical Fitness", href: `${urls.base}/fitness`, icon: Dumbbell, color: "text-doom-primary", external: true },
+      { name: "Nutrition", href: urls.nutrition, icon: Apple, color: "text-green-400", external: true },
+      { name: "Find Restaurants", href: urls.yelp, icon: UtensilsCrossed, color: "text-yellow-400", external: true },
+      { name: "Skin & Hair Analysis", href: urls.skin, icon: Droplet, color: "text-blue-400", external: true },
+      { name: "Community", href: urls.community, icon: Users2, color: "text-pink-400", external: true },
+    ];
 
-const menuItems: MenuItem[] = [
-  { name: "Physical Fitness", href: `${BASE_URL}/fitness`, icon: Dumbbell, color: "text-doom-primary", external: true },
-  { name: "Nutrition", href: process.env.NEXT_PUBLIC_NUTRITION_URL || "http://localhost:3003", icon: Apple, color: "text-green-400", external: true },
-  { name: "Find Restaurants", href: process.env.NEXT_PUBLIC_YELP_URL || "http://localhost:3004", icon: UtensilsCrossed, color: "text-yellow-400", external: true },
-  { name: "Skin & Hair Analysis", href: process.env.NEXT_PUBLIC_SKIN_URL || "http://localhost:3002", icon: Droplet, color: "text-blue-400", external: true },
-  { name: "Community", href: process.env.NEXT_PUBLIC_COMMUNITY_URL || "http://localhost:3006", icon: Users2, color: "text-pink-400", external: true },
-];
-
-export function Navigation({ user }: NavigationProps) {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
 
@@ -48,7 +67,7 @@ export function Navigation({ user }: NavigationProps) {
 
   const handleLogout = async () => {
     try {
-      await fetch(`${BASE_URL}/api/auth/logout`, { 
+      await fetch(`${urls.base}/api/auth/logout`, { 
         method: "POST",
         credentials: "include"
       });
@@ -58,7 +77,7 @@ export function Navigation({ user }: NavigationProps) {
       Object.keys(localStorage)
         .filter((k) => k.startsWith("wb_agent_profile_"))
         .forEach((k) => localStorage.removeItem(k));
-      window.location.href = BASE_URL;
+      window.location.href = urls.base;
     }
   };
 
@@ -69,7 +88,7 @@ export function Navigation({ user }: NavigationProps) {
         <div className="px-2">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <a href={`/api/sso?target=${encodeURIComponent(BASE_URL)}`} className="flex items-center space-x-2">
+            <a href={`/api/sso?target=${encodeURIComponent(urls.base)}`} className="flex items-center space-x-2">
               <img src="/assets/logo.jpg" alt="What Now?" className="h-9 w-auto mix-blend-screen" />
               <span className="text-xl font-bold text-doom-text hidden sm:block">What Now?</span>
             </a>
@@ -109,7 +128,7 @@ export function Navigation({ user }: NavigationProps) {
                   <div className="h-8 w-px bg-doom-primary/30" />
 
                   {/* Profile Section */}
-                  <a href={`/api/sso?target=${encodeURIComponent(`${BASE_URL}/profile`)}`} className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-doom-bg/30 hover:bg-doom-bg/50 transition-colors">
+                  <a href={`/api/sso?target=${encodeURIComponent(`${urls.base}/profile`)}`} className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-doom-bg/30 hover:bg-doom-bg/50 transition-colors">
                     <UserRound className="w-5 h-5 text-doom-primary" />
                     <span className="text-sm font-medium text-doom-text">{user.name}</span>
                   </a>
