@@ -29,7 +29,14 @@ export function Navigation({ user }: NavigationProps) {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
 
-  const [urls, setUrls] = useState({
+  const [urls, setUrls] = useState<{
+    dashboard: string;
+    nutrition: string;
+    yelp: string;
+    skin: string;
+    community: string;
+    token?: string;
+  }>({
     dashboard: "http://localhost:3005",
     nutrition: "http://localhost:3003",
     yelp: "http://localhost:3004",
@@ -38,11 +45,11 @@ export function Navigation({ user }: NavigationProps) {
   });
 
   useEffect(() => {
-    fetch('/api/config')
+    fetch('/api/config', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => setUrls(prev => ({...prev, ...data})))
       .catch(console.error);
-  }, []);
+  }, [user]);
 
   const menuItems: MenuItem[] = [
     { name: "Dashboard", href: urls.dashboard, icon: Activity, color: "text-doom-accent", external: true },
@@ -53,7 +60,15 @@ export function Navigation({ user }: NavigationProps) {
     { name: "Community", href: urls.community, icon: Users2, color: "text-pink-400", external: true },
   ];
 
-  const getHref = (item: MenuItem) => item.href;
+  const getHref = (item: MenuItem) => {
+    if (item.external && urls.token) {
+      // Append token to the URL query string
+      const url = new URL(item.href);
+      url.searchParams.append('token', urls.token);
+      return url.toString();
+    }
+    return item.href;
+  };
 
   const handleLogout = async () => {
     try {
