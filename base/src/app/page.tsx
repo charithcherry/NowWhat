@@ -271,11 +271,10 @@ export default function Home() {
                     setAuthMode("login");
                     setError("");
                   }}
-                  className={`flex-1 py-2 px-4 rounded-md font-medium transition-all ${
-                    authMode === "login"
+                  className={`flex-1 py-2 px-4 rounded-md font-medium transition-all ${authMode === "login"
                       ? "bg-doom-primary text-doom-bg"
                       : "text-doom-muted hover:text-doom-text"
-                  }`}
+                    }`}
                 >
                   Login
                 </button>
@@ -284,11 +283,10 @@ export default function Home() {
                     setAuthMode("register");
                     setError("");
                   }}
-                  className={`flex-1 py-2 px-4 rounded-md font-medium transition-all ${
-                    authMode === "register"
+                  className={`flex-1 py-2 px-4 rounded-md font-medium transition-all ${authMode === "register"
                       ? "bg-doom-primary text-doom-bg"
                       : "text-doom-muted hover:text-doom-text"
-                  }`}
+                    }`}
                 >
                   Register
                 </button>
