@@ -75,7 +75,7 @@ const TOOLS = [
                 "'community_comments' → user's comments. " +
                 "'community_moods' → mood check-ins. " +
                 "'community_events' → events user is attending. " +
-                "'community_connections' → user's connections.",
+                "'community_connections' → outbound and inbound connections (edges where this user is from or to).",
             },
             limit: {
               type: "integer",
@@ -117,11 +117,18 @@ async function executeTool(
     const userIdField = ALLOWED_COLLECTIONS[collection];
     const sortObj: Record<string, 1 | -1> = sort_field
       ? { [sort_field]: sort_order === "asc" ? 1 : -1 }
-      : { _id: -1 };
+      : collection === "community_connections"
+        ? { timestamp: -1 }
+        : { _id: -1 };
+
+    const filter =
+      collection === "community_connections"
+        ? { $or: [{ from_user_id: userId }, { to_user_id: userId }] }
+        : { [userIdField]: userId };
 
     const results = await db
       .collection(collection)
-      .find({ [userIdField]: userId })
+      .find(filter)
       .sort(sortObj)
       .limit(Math.min(Number(limit) || 5, 20))
       .toArray();

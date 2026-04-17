@@ -147,7 +147,7 @@ const featureScreens: FeatureScreen[] = [
     mediaSrc: "/assets/workout.jpg",
     mediaAlt: "Community feature",
     icon: Users2,
-    ctaHref: "http://localhost:3006",
+    ctaHref: "http://localhost:3000/community",
     ctaLabel: "Join Community",
   },
 ];

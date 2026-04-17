@@ -1,0 +1,16 @@
+{
+  "name": "nowwhat",
+  "private": true,
+  "description": "Run all WellBeing microservices with one command",
+  "scripts": {
+    "setup": "node scripts/install-all.js",
+    "dev": "concurrently -k -n base,skin,nutr,yelp,fit,comm -c cyan,magenta,green,yellow,blue,red \"npm run dev --prefix base\" \"npm run dev --prefix skin-hair-analysis\" \"npm run dev --prefix nutrition-wellness\" \"npm run dev --prefix nutrition-yelp\" \"npm run dev --prefix fitness-dashboard\" \"npm run dev --prefix community\"",
+    "dev:all": "npm run dev",
+    "dev:bash": "bash ./scripts/dev-all.sh",
+    "dev:core": "concurrently -k -n base,comm -c cyan,red \"npm run dev --prefix base\" \"npm run dev --prefix community\"",
+    "dev:community": "npm run dev --prefix community"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
