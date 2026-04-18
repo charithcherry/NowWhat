@@ -2,6 +2,7 @@
 const basePath = "/community";
 
 const nextConfig = {
+  output: 'standalone',
   basePath,
   async redirects() {
     return [

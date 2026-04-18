@@ -3,22 +3,14 @@ import DashboardClient from "./DashboardClient";
 import { getCurrentUser } from "@/lib/auth";
 import { Navigation } from "@/components/Navigation";
 import { redirect } from "next/navigation";
-import { handleTokenHandoff } from "@/lib/token-handoff";
 
 export const dynamic = "force-dynamic";
 
-export default async function FitnessDashboard({
-  searchParams,
-}: {
-  searchParams: { [key: string]: string | string[] | undefined };
-}) {
-  // Server-side token handoff: sets cookie from ?token param in one shot
-  await handleTokenHandoff(searchParams);
-
+export default async function FitnessDashboard() {
   const user = await getCurrentUser();
   
   if (!user) {
-    redirect("http://localhost:3000");
+    redirect(process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000");
   }
 
   const userId = user.userId;

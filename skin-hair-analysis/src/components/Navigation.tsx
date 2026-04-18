@@ -16,11 +16,11 @@ interface NavigationProps {
 }
 
 const menuItems = [
-  { name: "Home", href: "http://localhost:3000", icon: Home, color: "text-doom-primary" },
-  { name: "Physical Fitness", href: "http://localhost:3000/fitness", icon: Dumbbell, color: "text-doom-primary" },
-  { name: "Nutrition", href: "http://localhost:3003", icon: Apple, color: "text-green-400" },
-  { name: "Find Restaurants", href: "http://localhost:3004", icon: UtensilsCrossed, color: "text-yellow-400" },
-  { name: "Community", href: "http://localhost:3000/community", icon: Users2, color: "text-pink-400" },
+  { name: "Home", href: process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000", icon: Home, color: "text-doom-primary" },
+  { name: "Physical Fitness", href: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/fitness`, icon: Dumbbell, color: "text-doom-primary" },
+  { name: "Nutrition", href: process.env.NEXT_PUBLIC_NUTRITION_URL || "http://localhost:3003", icon: Apple, color: "text-green-400" },
+  { name: "Find Restaurants", href: process.env.NEXT_PUBLIC_RESTAURANTS_URL || "http://localhost:3004", icon: UtensilsCrossed, color: "text-yellow-400" },
+  { name: "Community", href: process.env.NEXT_PUBLIC_COMMUNITY_URL || "http://localhost:3000/community", icon: Users2, color: "text-pink-400" },
 ];
 
 export function Navigation({ user }: NavigationProps) {
@@ -30,8 +30,9 @@ export function Navigation({ user }: NavigationProps) {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
       // Call logout API
-      await fetch("http://localhost:3000/api/auth/logout", {
+      await fetch(`${baseUrl}/api/auth/logout`, {
         method: "POST",
         credentials: "include",
       });
@@ -42,7 +43,7 @@ export function Navigation({ user }: NavigationProps) {
       // This ensures cookies are cleared and user sees login page
       // Clear agent profile memory
       Object.keys(localStorage).filter((k) => k.startsWith("wb_agent_profile_")).forEach((k) => localStorage.removeItem(k));
-      window.location.href = "http://localhost:3000";
+      window.location.href = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
     }
   };
 
@@ -53,7 +54,7 @@ export function Navigation({ user }: NavigationProps) {
         <div className="px-2">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <a href="http://localhost:3002" className="flex items-center space-x-2">
+            <a href="/" className="flex items-center space-x-2">
               <img src="/assets/logo.jpg" alt="What Now?" className="h-9 w-auto mix-blend-screen" />
               <span className="text-xl font-bold text-doom-text hidden sm:block">
                 What Now?
@@ -78,7 +79,7 @@ export function Navigation({ user }: NavigationProps) {
 
               {user && (
                 <a
-                  href="http://localhost:3000/profile"
+                  href={`${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/profile`}
                   className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-doom-bg/50 transition-colors text-doom-accent"
                 >
                   <UserRound className="w-5 h-5" />

@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   webpack: (config, { isServer }) => {
     // MediaPipe requires WebAssembly
     config.experiments = {
@@ -38,16 +39,16 @@ const nextConfig = {
     return [
       {
         source: '/skin/:path*',
-        destination: 'http://localhost:3002/:path*',
+        destination: `${process.env.NEXT_PUBLIC_SKIN_URL || 'http://localhost:3002'}/:path*`,
       },
-      // Community Next app (UI + /community/api/*) on one upstream port — browse via http://localhost:3000/community
+      // Community Next app (UI + /community/api/*) on one upstream port
       {
         source: '/community',
-        destination: 'http://localhost:3006/community',
+        destination: `${process.env.NEXT_PUBLIC_COMMUNITY_URL || 'http://localhost:3006/community'}`,
       },
       {
         source: '/community/:path*',
-        destination: 'http://localhost:3006/community/:path*',
+        destination: `${process.env.NEXT_PUBLIC_COMMUNITY_URL || 'http://localhost:3006/community'}/:path*`,
       },
     ];
   },

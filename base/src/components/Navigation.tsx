@@ -26,12 +26,42 @@ interface NavigationProps {
 }
 
 const menuItems: MenuItem[] = [
-  { name: "Dashboard", href: "http://localhost:3005", icon: Activity, color: "text-doom-accent", external: true },
+  { 
+    name: "Dashboard", 
+    href: process.env.NEXT_PUBLIC_FITNESS_URL || "http://localhost:3005", 
+    icon: Activity, 
+    color: "text-doom-accent", 
+    external: true 
+  },
   { name: "Physical Fitness", href: "/fitness", icon: Dumbbell, color: "text-doom-primary" },
-  { name: "Nutrition", href: "http://localhost:3003", icon: Apple, color: "text-green-400", external: true },
-  { name: "Find Restaurants", href: "http://localhost:3004", icon: UtensilsCrossed, color: "text-yellow-400", external: true },
-  { name: "Skin & Hair Analysis", href: "http://localhost:3002", icon: Droplet, color: "text-blue-400", external: true },
-  { name: "Community", href: "http://localhost:3000/community", icon: Users2, color: "text-pink-400", external: true },
+  { 
+    name: "Nutrition", 
+    href: process.env.NEXT_PUBLIC_NUTRITION_URL || "http://localhost:3003", 
+    icon: Apple, 
+    color: "text-green-400", 
+    external: true 
+  },
+  { 
+    name: "Find Restaurants", 
+    href: process.env.NEXT_PUBLIC_RESTAURANTS_URL || "http://localhost:3004", 
+    icon: UtensilsCrossed, 
+    color: "text-yellow-400", 
+    external: true 
+  },
+  { 
+    name: "Skin & Hair Analysis", 
+    href: process.env.NEXT_PUBLIC_SKIN_URL || "http://localhost:3002", 
+    icon: Droplet, 
+    color: "text-blue-400", 
+    external: true 
+  },
+  { 
+    name: "Community", 
+    href: process.env.NEXT_PUBLIC_COMMUNITY_URL || "http://localhost:3000/community", 
+    icon: Users2, 
+    color: "text-pink-400", 
+    external: true 
+  },
 ];
 
 export function Navigation({ user }: NavigationProps) {
@@ -46,9 +76,10 @@ export function Navigation({ user }: NavigationProps) {
       const res = await fetch('/api/auth/token');
       if (res.ok) {
         const { token } = await res.json();
-        const url = new URL(href);
-        url.searchParams.set('token', token);
-        window.location.href = url.toString();
+        const target = new URL(href);
+        // Route through the handoff endpoint which sets the cookie via Route Handler
+        const handoffUrl = `${target.origin}/api/auth/handoff?token=${token}&redirect=/`;
+        window.location.href = handoffUrl;
       } else {
         window.location.href = href;
       }

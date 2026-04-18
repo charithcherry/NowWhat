@@ -26,18 +26,62 @@ interface FitnessNavigationProps {
 
 const menuItems: MenuItem[] = [
   { name: "Home", href: "/", icon: Home, color: "text-doom-primary" },
-  { name: "Nutrition", href: "http://localhost:3003", icon: Apple, color: "text-green-400", external: true },
-  { name: "Find Restaurants", href: "http://localhost:3004", icon: UtensilsCrossed, color: "text-yellow-400", external: true },
-  { name: "Skin & Hair Analysis", href: "http://localhost:3002", icon: Droplet, color: "text-blue-400", external: true },
-  { name: "Community", href: "http://localhost:3000/community", icon: Users2, color: "text-pink-400", external: true },
+  { 
+    name: "Nutrition", 
+    href: process.env.NEXT_PUBLIC_NUTRITION_URL || "http://localhost:3003", 
+    icon: Apple, 
+    color: "text-green-400", 
+    external: true 
+  },
+  { 
+    name: "Find Restaurants", 
+    href: process.env.NEXT_PUBLIC_RESTAURANTS_URL || "http://localhost:3004", 
+    icon: UtensilsCrossed, 
+    color: "text-yellow-400", 
+    external: true 
+  },
+  { 
+    name: "Skin & Hair Analysis", 
+    href: process.env.NEXT_PUBLIC_SKIN_URL || "http://localhost:3002", 
+    icon: Droplet, 
+    color: "text-blue-400", 
+    external: true 
+  },
+  { 
+    name: "Community", 
+    href: process.env.NEXT_PUBLIC_COMMUNITY_URL || "http://localhost:3000/community", 
+    icon: Users2, 
+    color: "text-pink-400", 
+    external: true 
+  },
 ];
 
 export function FitnessNavigation({ user }: FitnessNavigationProps) {
   const [isOpen, setIsOpen] = useState(false);
 
+  const handleExternalNav = async (e: React.MouseEvent, href: string) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/auth/token');
+      if (res.ok) {
+        const { token } = await res.json();
+        const target = new URL(href);
+        const handoffUrl = `${target.origin}/api/auth/handoff?token=${token}&redirect=/`;
+        window.location.href = handoffUrl;
+      } else {
+        window.location.href = href;
+      }
+    } catch {
+      window.location.href = href;
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith("wb_agent_profile_"))
+        .forEach((k) => localStorage.removeItem(k));
       window.location.href = "/";
     } catch (err) {
       console.error("Logout failed:", err);
@@ -62,6 +106,7 @@ export function FitnessNavigation({ user }: FitnessNavigationProps) {
                     <a
                       key={item.name}
                       href={item.href}
+                      onClick={(e) => handleExternalNav(e, item.href)}
                       className={`flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-doom-bg/50 transition-colors ${item.color}`}
                     >
                       <Icon className="w-5 h-5" />
@@ -160,7 +205,7 @@ export function FitnessNavigation({ user }: FitnessNavigationProps) {
                       {item.external ? (
                         <a
                           href={item.href}
-                          onClick={() => setIsOpen(false)}
+                          onClick={(e) => { setIsOpen(false); handleExternalNav(e, item.href); }}
                           className={`flex items-center space-x-4 p-4 rounded-lg hover:bg-doom-bg/50 transition-colors group ${item.color}`}
                         >
                           <div className="p-2 rounded-lg bg-doom-bg/50 group-hover:scale-110 transition-transform">

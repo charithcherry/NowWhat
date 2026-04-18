@@ -18,14 +18,14 @@ interface NavigationProps {
 
 /** Same entry other apps use (base proxies /community → community app on :3006). */
 const communityEntryUrl =
-  process.env.NEXT_PUBLIC_COMMUNITY_ENTRY_URL || "http://localhost:3000/community";
+  process.env.NEXT_PUBLIC_COMMUNITY_URL || "http://localhost:3000/community";
 
 const menuItems = [
-  { name: "Home", href: "http://localhost:3000", icon: Home, color: "text-doom-primary" },
-  { name: "Physical Fitness", href: "http://localhost:3000/fitness", icon: Dumbbell, color: "text-doom-primary" },
-  { name: "Nutrition", href: "http://localhost:3003", icon: Apple, color: "text-green-400" },
-  { name: "Find Restaurants", href: "http://localhost:3004", icon: UtensilsCrossed, color: "text-yellow-400" },
-  { name: "Skin & Hair", href: "http://localhost:3002", icon: Droplet, color: "text-blue-400" },
+  { name: "Home", href: process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000", icon: Home, color: "text-doom-primary" },
+  { name: "Physical Fitness", href: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/fitness`, icon: Dumbbell, color: "text-doom-primary" },
+  { name: "Nutrition", href: process.env.NEXT_PUBLIC_NUTRITION_URL || "http://localhost:3003", icon: Apple, color: "text-green-400" },
+  { name: "Find Restaurants", href: process.env.NEXT_PUBLIC_RESTAURANTS_URL || "http://localhost:3004", icon: UtensilsCrossed, color: "text-yellow-400" },
+  { name: "Skin & Hair", href: process.env.NEXT_PUBLIC_SKIN_URL || "http://localhost:3002", icon: Droplet, color: "text-blue-400" },
   { name: "Community", href: communityEntryUrl, icon: Users2, color: "text-pink-400" },
 ];
 
@@ -36,7 +36,8 @@ export function Navigation({ user }: NavigationProps) {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      await fetch("http://localhost:3000/api/auth/logout", {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+      await fetch(`${baseUrl}/api/auth/logout`, {
         method: "POST",
         credentials: "include",
       });
@@ -45,7 +46,7 @@ export function Navigation({ user }: NavigationProps) {
     } finally {
       // Clear agent profile memory
       Object.keys(localStorage).filter((k) => k.startsWith("wb_agent_profile_")).forEach((k) => localStorage.removeItem(k));
-      window.location.href = "http://localhost:3000";
+      window.location.href = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
     }
   };
 
@@ -78,7 +79,7 @@ export function Navigation({ user }: NavigationProps) {
 
               {user && (
                 <a
-                  href="http://localhost:3000/profile"
+                  href={`${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/profile`}
                   className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-doom-bg/50 transition-colors text-doom-accent"
                 >
                   <UserRound className="w-5 h-5" />

@@ -1,16 +1,10 @@
 import { getCurrentUser } from "@/lib/auth";
 import CommunityPage from "./CommunityPage";
 import SignInRequired from "./SignInRequired";
-import { handleTokenHandoff } from "@/lib/token-handoff";
 
 export const dynamic = "force-dynamic";
 
-export default async function Page({
-  searchParams,
-}: {
-  searchParams: { [key: string]: string | string[] | undefined };
-}) {
-  await handleTokenHandoff(searchParams);
+export default async function Page() {
   const user = await getCurrentUser();
 
   if (!user) {
