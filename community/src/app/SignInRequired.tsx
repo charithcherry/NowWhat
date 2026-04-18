@@ -1,5 +1,5 @@
 export default function SignInRequired() {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_APP_URL || "http://localhost:3000";
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
   return (
     <main className="min-h-screen bg-doom-bg text-doom-text flex flex-col items-center justify-center px-6 pt-16">
       <h1 className="text-2xl font-bold text-doom-primary mb-3">Sign in required</h1>

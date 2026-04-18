@@ -38,8 +38,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate JWT token
-    const token = generateToken({
+    // Generate Database Session Token
+    const token = await generateToken({
       userId: user._id.toString(),
       email: user.email,
       name: user.name,

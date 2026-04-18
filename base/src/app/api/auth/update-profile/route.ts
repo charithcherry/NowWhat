@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, generateToken, setAuthCookie, clearAuthCookie } from "@/lib/auth";
 import { getDatabase } from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
-import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
 
 export async function POST(request: Request) {
   try {
@@ -27,31 +25,16 @@ export async function POST(request: Request) {
       { $set: { name: name.trim(), updated_at: new Date() } }
     );
 
-    // Generate new token with updated name
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      return NextResponse.json({ error: "JWT_SECRET not configured" }, { status: 500 });
-    }
+    // Invalidate old session and create a new one with updated user info
+    await clearAuthCookie();
 
-    const token = jwt.sign(
-      {
-        userId: user.userId,
-        email: user.email,
-        name: name.trim(),
-      },
-      secret,
-      { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
-    );
-
-    // Set new cookie with updated token
-    const cookieStore = cookies();
-    cookieStore.set("auth_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: "/",
+    const token = await generateToken({
+      userId: user.userId,
+      email: user.email,
+      name: name.trim(),
     });
+
+    await setAuthCookie(token);
 
     return NextResponse.json({
       success: true,
@@ -69,3 +52,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

@@ -10,7 +10,7 @@ export default async function FitnessDashboard() {
   const user = await getCurrentUser();
   
   if (!user) {
-    redirect("http://localhost:3000");
+    redirect(process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000");
   }
 
   const userId = user.userId;

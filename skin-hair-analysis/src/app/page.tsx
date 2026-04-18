@@ -8,7 +8,7 @@ export default async function Page() {
 
   if (!user) {
     // Redirect to base app login page
-    redirect("http://localhost:3000");
+    redirect(process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000");
   }
 
   return (
