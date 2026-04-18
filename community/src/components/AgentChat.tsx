@@ -55,7 +55,8 @@ export function AgentChat({ userId = "" }: { userId?: string }) {
 
   const loadHistory = useCallback(async (uid: string) => {
     try {
-      const res = await fetch(apiUrl(`/api/agent/history?userId=${uid}`));
+      const res = await fetch(apiUrl("/api/agent/history"));
+      if (!res.ok) return;
       const data = await res.json();
       if (data.messages?.length > 0) {
         setMessages(data.messages.slice(-20));
@@ -69,7 +70,10 @@ export function AgentChat({ userId = "" }: { userId?: string }) {
     async (uid: string) => {
       setProfileLoading(true);
       try {
-        const res = await fetch(apiUrl(`/api/agent/profile?userId=${uid}`));
+        const res = await fetch(apiUrl("/api/agent/profile"));
+        if (!res.ok) {
+          throw new Error("Failed to build profile");
+        }
         const data = await res.json();
         const ctx = data.profileContext || "A health-conscious WellBeing app user.";
         setProfileContext(ctx);
@@ -121,7 +125,6 @@ export function AgentChat({ userId = "" }: { userId?: string }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId,
           profileContext: profileContext || "",
           messages: updated.slice(0, -1),
           message: userMsg.content,

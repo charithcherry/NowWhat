@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import {
   createRecipe,
   createRecipeModification,
@@ -15,10 +16,11 @@ import { validateModificationPayload } from "@/modules/nutrition/validators";
 
 export async function GET(request: NextRequest, context: { params: { id: string } }) {
   try {
-    const userId = request.nextUrl.searchParams.get("userId");
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 });
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const userId = user.userId;
 
     const modifications = await listRecipeModifications(userId, context.params.id);
     return NextResponse.json({ success: true, modifications });
@@ -30,7 +32,15 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
 export async function POST(request: NextRequest, context: { params: { id: string } }) {
   try {
-    const payload = (await request.json()) as Record<string, unknown>;
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const payload = {
+      ...((await request.json()) as Record<string, unknown>),
+      user_id: user.userId,
+    };
     const validated = validateModificationPayload(payload);
 
     const [recipe, profile] = await Promise.all([

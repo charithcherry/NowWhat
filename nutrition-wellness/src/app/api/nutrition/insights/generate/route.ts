@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import {
   listRecipes,
   getNutritionProfile,
@@ -12,7 +13,15 @@ import { validateInsightGeneratePayload } from "@/modules/nutrition/validators";
 
 export async function POST(request: NextRequest) {
   try {
-    const payload = (await request.json()) as Record<string, unknown>;
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const payload = {
+      ...((await request.json()) as Record<string, unknown>),
+      user_id: user.userId,
+    };
     const validated = validateInsightGeneratePayload(payload);
 
     const [profile, recipes] = await Promise.all([

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MongoClient } from "mongodb";
+import { getCurrentUser } from "@/lib/auth";
 
 // ── MongoDB ────────────────────────────────────────────────────────────────
 async function getDb() {
@@ -187,7 +188,13 @@ async function callGemini(
 // ── POST /api/agent/chat ───────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
-    const { userId, profileContext, messages, message } = await req.json();
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { profileContext, messages, message } = await req.json();
+    const userId = user.userId;
 
     if (!message?.trim()) {
       return NextResponse.json({ error: "message required" }, { status: 400 });

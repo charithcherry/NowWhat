@@ -1,4 +1,4 @@
-import { cookies, headers } from 'next/headers';
+import { cookies } from 'next/headers';
 import { getDatabase } from './mongodb';
 import { ObjectId } from 'mongodb';
 import crypto from 'crypto';
@@ -55,21 +55,19 @@ export async function generateToken(payload: SessionPayload): Promise<string> {
 }
 
 /**
+ * Read the current session token from the auth cookie.
+ */
+export async function getSessionToken(): Promise<string | null> {
+  const cookieStore = await cookies();
+  return cookieStore.get('auth_token')?.value ?? null;
+}
+
+/**
  * Get current user by validating the session token against MongoDB.
- * Checks cookie first, then falls back to Authorization: Bearer header.
  */
 export async function getCurrentUser(): Promise<AuthUser | null> {
   try {
-    const cookieStore = await cookies();
-    let token = cookieStore.get('auth_token')?.value;
-
-    if (!token) {
-      const headersList = await headers();
-      const authHeader = headersList.get('authorization');
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        token = authHeader.substring(7);
-      }
-    }
+    const token = await getSessionToken();
 
     if (!token) {
       return null;

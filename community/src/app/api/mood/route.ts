@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/lib/mongodb";
 
 const CORS = {
@@ -12,7 +13,11 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
-  const userId = request.nextUrl.searchParams.get("userId") || "demo-user";
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS });
+  }
+  const userId = user.userId;
   const today = new Date().toISOString().split("T")[0];
 
   try {
@@ -67,7 +72,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId = "demo-user", rating, note = "" } = await request.json();
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS });
+    }
+
+    const { rating, note = "" } = await request.json();
+    const userId = user.userId;
 
     if (!rating || rating < 1 || rating > 5) {
       return NextResponse.json(

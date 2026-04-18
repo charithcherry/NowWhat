@@ -98,8 +98,6 @@ export default function PostCard({ post, currentUserId, index, onUpvote, isConne
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           postId: post._id,
-          userId: currentUserId,
-          displayName: "You",
           body: commentText.trim(),
         }),
       });

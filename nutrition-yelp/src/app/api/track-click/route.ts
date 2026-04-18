@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/lib/mongodb";
 import { memoryClicks } from "@/lib/memory-store";
 
@@ -14,8 +15,13 @@ export async function OPTIONS() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId = "demo-user", restaurantId = "", restaurantName = "", action = "click", metadata = {} } =
-      await request.json();
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
+    }
+
+    const { restaurantId = "", restaurantName = "", action = "click", metadata = {} } = await request.json();
+    const userId = user.userId;
 
     const entry = {
       user_id: userId,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/lib/mongodb";
 import { memoryFavorites, memoryClicks } from "@/lib/memory-store";
 
@@ -45,7 +46,11 @@ function normalizeClick(doc: any) {
 }
 
 export async function GET(request: NextRequest) {
-  const userId = request.nextUrl.searchParams.get("userId") || "demo-user";
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
+  }
+  const userId = user.userId;
 
   try {
     const db = await getDb();
@@ -73,7 +78,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { userId = "demo-user" } = await request.json();
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
+    }
+
+    const userId = user.userId;
 
     let favorites: any[] = [];
     let recentClicks: any[] = [];

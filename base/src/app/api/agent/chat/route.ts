@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { MongoClient } from "mongodb";
+import { getCurrentUser } from "@/lib/auth";
+import { getDatabase } from "@/lib/mongodb";
 
 // ── MongoDB ────────────────────────────────────────────────────────────────
 async function getDb() {
-  const client = new MongoClient(process.env.MONGODB_URI!, {
-    serverSelectionTimeoutMS: 5000,
-  });
-  await client.connect();
-  return { client, db: client.db(process.env.MONGODB_DB || "wellbeing_app") };
+  return { db: await getDatabase() };
 }
 
 // Collections Gemini is allowed to query + the userId field name each uses
@@ -112,42 +109,33 @@ async function executeTool(
     return { error: `Collection '${collection}' is not accessible.` };
   }
 
-  const { client, db } = await getDb();
-  try {
-    const userIdField = ALLOWED_COLLECTIONS[collection];
-    const sortObj: Record<string, 1 | -1> = sort_field
-      ? { [sort_field]: sort_order === "asc" ? 1 : -1 }
-      : collection === "community_connections"
-        ? { timestamp: -1 }
-        : { _id: -1 };
+  const { db } = await getDb();
+  const userIdField = ALLOWED_COLLECTIONS[collection];
+  const sortObj: Record<string, 1 | -1> = sort_field
+    ? { [sort_field]: sort_order === "asc" ? 1 : -1 }
+    : collection === "community_connections"
+      ? { timestamp: -1 }
+      : { _id: -1 };
 
-    const filter =
-      collection === "community_connections"
-        ? { $or: [{ from_user_id: userId }, { to_user_id: userId }] }
-        : { [userIdField]: userId };
+  const filter =
+    collection === "community_connections"
+      ? { $or: [{ from_user_id: userId }, { to_user_id: userId }] }
+      : { [userIdField]: userId };
 
-    const results = await db
-      .collection(collection)
-      .find(filter)
-      .sort(sortObj)
-      .limit(Math.min(Number(limit) || 5, 20))
-      .toArray();
+  const results = await db
+    .collection(collection)
+    .find(filter)
+    .sort(sortObj)
+    .limit(Math.min(Number(limit) || 5, 20))
+    .toArray();
 
-    // Strip passwords
-    const sanitized = results.map((r: any) => {
-      const { password, ...rest } = r;
-      return rest;
-    });
+  // Strip passwords
+  const sanitized = results.map((r: any) => {
+    const { password, ...rest } = r;
+    return rest;
+  });
 
-    console.log(
-      `🔧 [Agent Tool] get_user_data("${collection}") → ${sanitized.length} records`
-    );
-    console.log(JSON.stringify(sanitized, null, 2));
-
-    return { collection, count: sanitized.length, data: sanitized };
-  } finally {
-    await client.close();
-  }
+  return { collection, count: sanitized.length, data: sanitized };
 }
 
 // ── Gemini API call (with proper systemInstruction) ─────────────────────
@@ -189,7 +177,13 @@ async function callGemini(
 // ── POST /api/agent/chat ───────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
-    const { userId, profileContext, messages, message } = await req.json();
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ response: "Authentication required." }, { status: 401 });
+    }
+
+    const { profileContext, messages, message } = await req.json();
+    const userId = user.userId;
 
     if (!message?.trim()) {
       return NextResponse.json({ error: "message required" }, { status: 400 });
@@ -226,8 +220,6 @@ CRITICAL RULES:
       { role: "user", parts: [{ text: message }] },
     ];
 
-    console.log(`\n💬 [Agent Chat] User: "${message}"`);
-
     // ── Agentic loop: up to 4 tool call rounds ─────────────────
     let currentContents = [...contents];
     let finalResponse = "";
@@ -244,7 +236,6 @@ CRITICAL RULES:
 
       if (functionCallPart) {
         const { name, args } = functionCallPart.functionCall;
-        console.log(`🔧 [Agent Chat] Round ${round + 1} — calling tool: ${name}(${JSON.stringify(args)})`);
 
         const toolResult = await executeTool(name, args, userId);
 
@@ -268,7 +259,6 @@ CRITICAL RULES:
 
       if (textPart) {
         finalResponse = textPart.text.trim();
-        console.log(`✅ [Agent Chat] Final response after ${round} tool round(s):\n${finalResponse}\n`);
         break;
       }
 
@@ -281,13 +271,12 @@ CRITICAL RULES:
 
     // ── Persist both messages to MongoDB ──────────────────────
     try {
-      const { client: saveClient, db: saveDb } = await getDb();
+      const { db: saveDb } = await getDb();
       const now = new Date();
       await saveDb.collection("agent_chats").insertMany([
         { user_id: userId, role: "user",      content: message,       timestamp: now },
         { user_id: userId, role: "assistant", content: finalResponse, timestamp: new Date(now.getTime() + 1) },
       ]);
-      await saveClient.close();
     } catch (saveErr) {
       console.error("[Agent Chat] Failed to save messages:", saveErr);
     }

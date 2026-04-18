@@ -9,7 +9,8 @@ import {
   ElevenLabsVoice,
   getRepCountMessage,
   SESSION_MESSAGES,
-  VOICE_FEEDBACK_SETTINGS
+  VOICE_FEEDBACK_SETTINGS,
+  type VoicePriority,
 } from "@/lib/voice";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -142,6 +143,17 @@ function isBicepCurlExercise(exerciseName: string): boolean {
   return BICEP_CURL_EXERCISE_PATTERN.test(exerciseName);
 }
 
+function normalizeVoicePriority(priority?: string): VoicePriority {
+  switch ((priority || '').toLowerCase()) {
+    case 'low':
+      return 'low';
+    case 'medium':
+      return 'medium';
+    default:
+      return 'high';
+  }
+}
+
 function deriveFrameScores(frame: ExerciseFrame, result: AnalysisResult) {
   let postureScore = 100;
   let armPositionScore = 100;
@@ -223,27 +235,62 @@ export default function FitnessPage() {
     }
   }, [voiceEnabled]);
 
-  const speak = (text: string, priority: any = 'HIGH') => {
-    if (voiceManagerRef.current && voiceEnabled) voiceManagerRef.current.queueMessage(text, priority);
+  const speak = (text: string, priority: VoicePriority | string = 'high') => {
+    if (!voiceManagerRef.current || !voiceEnabled || !text?.trim()) {
+      return;
+    }
+
+    voiceManagerRef.current.queueMessage(text, normalizeVoicePriority(priority));
   };
 
   const isSpeakingRef = useRef(false);
 
   const speakMaster = (text: string) => {
-    if (typeof window === 'undefined' || !text?.trim()) return;
+    if (typeof window === 'undefined' || !text?.trim() || !voiceEnabled) return;
+
     // Stop mic immediately before speaking
     isSpeakingRef.current = true;
     if (recognitionRef.current) { try { recognitionRef.current.stop(); } catch {} }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.05; utterance.pitch = 1.0; utterance.volume = 1.0;
-    utterance.onend = () => {
+    voiceManagerRef.current?.stopAndClear();
+
+    const finish = () => {
       // Wait 600ms after speech fully ends before re-enabling mic
       // This prevents the mic from capturing the tail end of TTS audio
       setTimeout(() => {
         isSpeakingRef.current = false;
         if (recognitionRef.current) { try { recognitionRef.current.start(); } catch {} }
       }, 600);
+    };
+
+    const provider = voiceManagerRef.current?.getProvider();
+
+    if (provider) {
+      void provider
+        .speak(text, { rate: 1.05, pitch: 1.0, volume: 1.0, language: 'en-US' })
+        .then(finish)
+        .catch((error) => {
+          console.error('Master voice provider error:', error);
+          finish();
+        });
+      return;
+    }
+
+    if (!('speechSynthesis' in window)) {
+      console.warn('speechSynthesis is not available in this browser');
+      finish();
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.05;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+    utterance.lang = 'en-US';
+    utterance.onend = finish;
+    utterance.onerror = (event) => {
+      console.error('Master speech synthesis error:', event.error);
+      finish();
     };
     window.speechSynthesis.speak(utterance);
   };
@@ -275,6 +322,8 @@ export default function FitnessPage() {
   const [masterState, setMasterState] = useState('greeting');
   const [sessionStarted, setSessionStarted] = useState(false);
   const masterStateRef = useRef('greeting');
+  const sessionStartedRef = useRef(false);
+  const sessionStartingRef = useRef(false);
   // Full conversation history — sent to master on every call (standard chatbot pattern)
   const conversationHistoryRef = useRef<ConvEntry[]>([]);
   const aiExerciseNameRef = useRef('');
@@ -282,6 +331,8 @@ export default function FitnessPage() {
   const frameMonitorTimerRef = useRef<any>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const isSendingRef = useRef(false);
+  const lastTranscriptRef = useRef('');
+  const lastTranscriptAtRef = useRef(0);
 
   // Auto-scroll chat to bottom
   useEffect(() => {
@@ -463,31 +514,51 @@ export default function FitnessPage() {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) { speak("Speech recognition not supported. Please use Chrome."); return; }
 
+    if (recognitionRef.current) {
+      return;
+    }
+
     const recognition = new SR();
     recognition.continuous = true;
     recognition.interimResults = false;
     recognition.lang = 'en-US';
-
-    let lastTranscript = '';
     recognition.onresult = (event: any) => {
       const result = event.results[event.results.length - 1];
       if (!result.isFinal) return;
       const transcript = result[0].transcript.trim();
-      if (!transcript || transcript === lastTranscript) return;
+      if (!transcript) return;
       // Discard anything captured while the agent is speaking
       if (isSpeakingRef.current) return;
       if (isExerciseActiveRef.current) return;
-      lastTranscript = transcript;
+      const now = Date.now();
+      if (
+        transcript === lastTranscriptRef.current &&
+        now - lastTranscriptAtRef.current < 5000
+      ) {
+        return;
+      }
+      lastTranscriptRef.current = transcript;
+      lastTranscriptAtRef.current = now;
       setVoiceTranscript(transcript);
       sendToMaster(transcript);
     };
     recognition.onerror = (event: any) => {
-      if (event.error !== 'no-speech') setIsListening(false);
+      if (event.error !== 'no-speech') {
+        setIsListening(false);
+        recognitionRef.current = null;
+      }
     };
     recognition.onend = () => {
+      if (recognitionRef.current === recognition) {
+        recognitionRef.current = null;
+      }
       // Only restart if we stopped because of natural end, NOT because speakMaster paused it
-      if (recognitionRef.current === recognition && !isSpeakingRef.current) {
-        try { recognition.start(); } catch {}
+      if (sessionStartedRef.current && !isSpeakingRef.current && !isExerciseActiveRef.current) {
+        setTimeout(() => {
+          if (sessionStartedRef.current && !recognitionRef.current && !isSpeakingRef.current && !isExerciseActiveRef.current) {
+            startListening();
+          }
+        }, 150);
       }
     };
 
@@ -506,9 +577,23 @@ export default function FitnessPage() {
   };
 
   const startSession = async () => {
+    if (sessionStartedRef.current || sessionStartingRef.current) {
+      return;
+    }
+
+    sessionStartingRef.current = true;
+    sessionStartedRef.current = true;
     setSessionStarted(true);
-    startListening();
-    await sendToMaster('Hello, I just opened the fitness assistant.');
+    try {
+      await sendToMaster('Hello, I just opened the fitness assistant.');
+      setTimeout(() => {
+        if (sessionStartedRef.current && !isExerciseActiveRef.current) {
+          startListening();
+        }
+      }, 900);
+    } finally {
+      sessionStartingRef.current = false;
+    }
   };
 
   const persistSession = useCallback(async (sessionStatus: FitnessSessionStatus) => {
@@ -627,6 +712,8 @@ export default function FitnessPage() {
     window.speechSynthesis?.cancel();
     voiceManagerRef.current?.stopAndClear();
     setSessionStarted(false);
+    sessionStartedRef.current = false;
+    sessionStartingRef.current = false;
     setIsExerciseActive(false);
     isExerciseActiveRef.current = false;
     setAiStatus('idle');
@@ -646,6 +733,8 @@ export default function FitnessPage() {
     setMasterState('greeting');
     setMessages([]);
     setVoiceTranscript('');
+    lastTranscriptRef.current = '';
+    lastTranscriptAtRef.current = 0;
     setAiMetrics({ reps: 0, phase: 'neutral', formIssues: [], isValidPosition: false });
     sessionTrackingRef.current = createEmptySessionTracker();
   };
@@ -656,6 +745,8 @@ export default function FitnessPage() {
         void persistSession('abandoned');
       }
       stopListening();
+      sessionStartedRef.current = false;
+      sessionStartingRef.current = false;
       stopJobPolling();
       clearInterval(frameMonitorTimerRef.current);
       window.speechSynthesis?.cancel();

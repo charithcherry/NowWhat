@@ -18,34 +18,35 @@ async function safeJson<T>(response: Response): Promise<T> {
   return body as T;
 }
 
-export async function fetchProfile(userId: string): Promise<NutritionProfile | null> {
-  const response = await fetch(`/api/nutrition/profile?userId=${encodeURIComponent(userId)}`, { cache: "no-store" });
+export async function fetchProfile(_userId: string): Promise<NutritionProfile | null> {
+  const response = await fetch("/api/nutrition/profile", { cache: "no-store" });
   const body = await safeJson<{ profile: NutritionProfile | null }>(response);
   return body.profile;
 }
 
 export async function saveProfile(profile: Partial<NutritionProfile> & { user_id: string; primary_goal: string }) {
+  const { user_id: _userId, ...profilePayload } = profile;
   const response = await fetch("/api/nutrition/profile", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(profile),
+    body: JSON.stringify(profilePayload),
   });
 
   const body = await safeJson<{ profile: NutritionProfile }>(response);
   return body.profile;
 }
 
-export async function fetchPantryItems(userId: string): Promise<PantryItem[]> {
-  const response = await fetch(`/api/nutrition/pantry-items?userId=${encodeURIComponent(userId)}`, { cache: "no-store" });
+export async function fetchPantryItems(_userId: string): Promise<PantryItem[]> {
+  const response = await fetch("/api/nutrition/pantry-items", { cache: "no-store" });
   const body = await safeJson<{ items: PantryItem[] }>(response);
   return body.items;
 }
 
-export async function savePantryItems(userId: string, items: Array<string | { item_name: string; quantity?: number; unit?: string }>) {
+export async function savePantryItems(_userId: string, items: Array<string | { item_name: string; quantity?: number; unit?: string }>) {
   const response = await fetch("/api/nutrition/pantry-items", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: userId, items }),
+    body: JSON.stringify({ items }),
   });
 
   const body = await safeJson<{ items: PantryItem[] }>(response);
@@ -58,10 +59,11 @@ export async function generatePantryMeals(params: {
   workout_context?: string;
   max_results?: number;
 }) {
+  const { user_id: _userId, ...payload } = params;
   const response = await fetch("/api/nutrition/pantry/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(params),
+    body: JSON.stringify(payload),
   });
 
   const body = await safeJson<{
@@ -79,10 +81,11 @@ export async function optimizeAuthenticDish(params: {
   cuisine?: string;
   optimization_preferences: string[];
 }) {
+  const { user_id: _userId, ...payload } = params;
   const response = await fetch("/api/nutrition/authentic/optimize", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(params),
+    body: JSON.stringify(payload),
   });
 
   const body = await safeJson<{
@@ -105,23 +108,20 @@ export async function createRecipe(payload: Record<string, unknown>) {
   return body.recipe;
 }
 
-export async function saveRecipe(recipeId: string, userId: string, userNotes?: string) {
+export async function saveRecipe(recipeId: string, _userId: string, userNotes?: string) {
   const response = await fetch(`/api/nutrition/recipes/${encodeURIComponent(recipeId)}/save`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: userId, user_notes: userNotes }),
+    body: JSON.stringify({ user_notes: userNotes }),
   });
 
   return safeJson<{ success: boolean }>(response);
 }
 
-export async function unsaveRecipe(recipeId: string, userId: string) {
-  const response = await fetch(
-    `/api/nutrition/recipes/${encodeURIComponent(recipeId)}/save?userId=${encodeURIComponent(userId)}`,
-    {
-      method: "DELETE",
-    },
-  );
+export async function unsaveRecipe(recipeId: string, _userId: string) {
+  const response = await fetch(`/api/nutrition/recipes/${encodeURIComponent(recipeId)}/save`, {
+    method: "DELETE",
+  });
 
   return safeJson<{ success: boolean }>(response);
 }
@@ -136,21 +136,20 @@ export async function modifyRecipe(recipeId: string, payload: Record<string, unk
   return safeJson<{ modification: RecipeModification; modified_recipe: GeneratedRecipe | null }>(response);
 }
 
-export async function fetchRecipeModifications(recipeId: string, userId: string) {
-  const response = await fetch(
-    `/api/nutrition/recipes/${encodeURIComponent(recipeId)}/modify?userId=${encodeURIComponent(userId)}`,
-    { cache: "no-store" },
-  );
+export async function fetchRecipeModifications(recipeId: string, _userId: string) {
+  const response = await fetch(`/api/nutrition/recipes/${encodeURIComponent(recipeId)}/modify`, {
+    cache: "no-store",
+  });
 
   const body = await safeJson<{ modifications: RecipeModification[] }>(response);
   return body.modifications;
 }
 
-export async function duplicateRecipe(recipeId: string, userId: string) {
+export async function duplicateRecipe(recipeId: string, _userId: string) {
   const response = await fetch(`/api/nutrition/recipes/${encodeURIComponent(recipeId)}/duplicate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: userId }),
+    body: JSON.stringify({}),
   });
 
   const body = await safeJson<{ recipe: GeneratedRecipe }>(response);
@@ -158,7 +157,7 @@ export async function duplicateRecipe(recipeId: string, userId: string) {
 }
 
 export async function fetchRecipeLibrary(
-  userId: string,
+  _userId: string,
   filters: {
     search?: string;
     tags?: string[];
@@ -170,7 +169,6 @@ export async function fetchRecipeLibrary(
   } = {},
 ): Promise<{ entries: RecipeLibraryEntry[]; seeded: boolean }> {
   const query = new URLSearchParams();
-  query.set("userId", userId);
 
   if (filters.search) query.set("search", filters.search);
   if (filters.tags && filters.tags.length > 0) query.set("tags", filters.tags.join(","));
@@ -185,25 +183,25 @@ export async function fetchRecipeLibrary(
   return body;
 }
 
-export async function fetchInsights(userId: string) {
-  const response = await fetch(`/api/nutrition/insights?userId=${encodeURIComponent(userId)}`, { cache: "no-store" });
+export async function fetchInsights(_userId: string) {
+  const response = await fetch("/api/nutrition/insights", { cache: "no-store" });
   const body = await safeJson<{ insights: WellnessMealInsight[]; seeded: boolean }>(response);
   return body;
 }
 
-export async function generateInsights(userId: string) {
+export async function generateInsights(_userId: string) {
   const response = await fetch("/api/nutrition/insights/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: userId }),
+    body: JSON.stringify({}),
   });
 
   const body = await safeJson<{ insights: WellnessMealInsight[] }>(response);
   return body.insights;
 }
 
-export async function fetchSummary(userId: string) {
-  const response = await fetch(`/api/nutrition/summary?userId=${encodeURIComponent(userId)}`, { cache: "no-store" });
+export async function fetchSummary(_userId: string) {
+  const response = await fetch("/api/nutrition/summary", { cache: "no-store" });
   const body = await safeJson<{ summary: SummaryPayload }>(response);
   return body.summary;
 }

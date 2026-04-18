@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, Dumbbell, Apple, Droplet, UtensilsCrossed, Home, UserRound, LogOut, Users2 } from "lucide-react";
+import { Menu, X, Dumbbell, Apple, Droplet, UtensilsCrossed, Home, Activity, UserRound, LogOut, Users2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 
@@ -26,6 +26,13 @@ interface FitnessNavigationProps {
 
 const menuItems: MenuItem[] = [
   { name: "Home", href: "/", icon: Home, color: "text-doom-primary" },
+  {
+    name: "Dashboard",
+    href: process.env.NEXT_PUBLIC_FITNESS_URL || "http://localhost:3005",
+    icon: Activity,
+    color: "text-doom-accent",
+    external: true
+  },
   { 
     name: "Nutrition", 
     href: process.env.NEXT_PUBLIC_NUTRITION_URL || "http://localhost:3003", 
@@ -61,19 +68,7 @@ export function FitnessNavigation({ user }: FitnessNavigationProps) {
 
   const handleExternalNav = async (e: React.MouseEvent, href: string) => {
     e.preventDefault();
-    try {
-      const res = await fetch('/api/auth/token');
-      if (res.ok) {
-        const { token } = await res.json();
-        const target = new URL(href);
-        const handoffUrl = `${target.origin}/api/auth/handoff?token=${token}&redirect=/`;
-        window.location.href = handoffUrl;
-      } else {
-        window.location.href = href;
-      }
-    } catch {
-      window.location.href = href;
-    }
+    window.location.href = `/api/auth/handoff?target=${encodeURIComponent(href)}`;
   };
 
   const handleLogout = async () => {

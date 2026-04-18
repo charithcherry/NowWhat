@@ -1,16 +1,18 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { createSavedRecipe, getRecipeById, removeSavedRecipe } from "@/modules/nutrition/repositories";
 import { trackNutritionActivitySafely } from "@/modules/nutrition/services/insightMemory";
 
 export async function POST(request: NextRequest, context: { params: { id: string } }) {
   try {
-    const payload = (await request.json()) as Record<string, unknown>;
-    const userId = String(payload.user_id || "").trim();
-    if (!userId) {
-      return NextResponse.json({ error: "user_id is required" }, { status: 400 });
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const payload = (await request.json()) as Record<string, unknown>;
+    const userId = user.userId;
 
     const [saved, recipe] = await Promise.all([
       createSavedRecipe(userId, context.params.id, typeof payload.user_notes === "string" ? payload.user_notes : undefined),
@@ -36,10 +38,11 @@ export async function POST(request: NextRequest, context: { params: { id: string
 
 export async function DELETE(request: NextRequest, context: { params: { id: string } }) {
   try {
-    const userId = request.nextUrl.searchParams.get("userId");
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 });
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const userId = user.userId;
 
     await removeSavedRecipe(userId, context.params.id);
     return NextResponse.json({ success: true });

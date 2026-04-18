@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { deleteLovedProduct, updateLovedProduct } from "@/modules/skin-hair/repositories";
 import { lookupProductIngredients } from "@/modules/skin-hair/ingredientLookup";
 
@@ -12,12 +13,12 @@ interface RouteContext {
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
-    const payload = (await request.json()) as Record<string, unknown>;
-    const userId = String(payload.user_id || "").trim();
-
-    if (!userId) {
-      return NextResponse.json({ error: "user_id is required" }, { status: 400 });
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const payload = (await request.json()) as Record<string, unknown>;
+    const userId = user.userId;
 
     const patch: {
       product_name?: string;
@@ -61,11 +62,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
-    const userId = request.nextUrl.searchParams.get("userId");
-
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 });
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const userId = user.userId;
 
     await deleteLovedProduct(userId, context.params.id);
 

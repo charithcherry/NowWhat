@@ -1,16 +1,17 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { addLovedProduct, listLovedProducts } from "@/modules/skin-hair/repositories";
 import { lookupProductIngredients } from "@/modules/skin-hair/ingredientLookup";
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.nextUrl.searchParams.get("userId");
-
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 });
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const userId = user.userId;
 
     const products = await listLovedProducts(userId);
 
@@ -23,17 +24,21 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const payload = (await request.json()) as Record<string, unknown>;
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    const userId = String(payload.user_id || "").trim();
+    const payload = (await request.json()) as Record<string, unknown>;
+    const userId = user.userId;
     const productName = String(payload.product_name || "").trim();
     const brand = String(payload.brand || "").trim();
     const category = String(payload.category || "").trim().toLowerCase();
     const notes = String(payload.notes || "").trim();
 
-    if (!userId || !productName || !brand || !category) {
+    if (!productName || !brand || !category) {
       return NextResponse.json(
-        { error: "user_id, product_name, brand, and category are required" },
+        { error: "product_name, brand, and category are required" },
         { status: 400 },
       );
     }

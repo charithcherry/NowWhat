@@ -22,14 +22,14 @@ interface PeopleLikeYouProps {
   onSelectUser?: (userId: string, displayName: string) => void;
 }
 
-export default function PeopleLikeYou({ userId, onSelectUser }: PeopleLikeYouProps) {
+export default function PeopleLikeYou({ userId: _userId, onSelectUser }: PeopleLikeYouProps) {
   const [data, setData] = useState<PeopleData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(apiUrl(`/api/people-like-you?userId=${userId}`));
+        const res = await fetch(apiUrl("/api/people-like-you"));
         if (res.ok) {
           setData(await res.json());
         }
@@ -39,7 +39,7 @@ export default function PeopleLikeYou({ userId, onSelectUser }: PeopleLikeYouPro
       setLoading(false);
     }
     load();
-  }, [userId]);
+  }, []);
 
   if (loading) {
     return (

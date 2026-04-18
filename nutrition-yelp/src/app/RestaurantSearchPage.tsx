@@ -50,7 +50,7 @@ interface RestaurantSearchPageProps {
   userName?: string;
 }
 
-export default function RestaurantSearchPage({ userId, userName }: RestaurantSearchPageProps) {
+export default function RestaurantSearchPage({ userId: _userId, userName }: RestaurantSearchPageProps) {
   const [activeTab, setActiveTab] = useState<Tab>("restaurants");
   const [location, setLocation] = useState("Boulder, CO");
   const [category, setCategory] = useState("");
@@ -83,7 +83,7 @@ export default function RestaurantSearchPage({ userId, userName }: RestaurantSea
 
   async function loadFavorites() {
     try {
-      const res = await fetch(`/api/favorites?userId=${userId}`);
+      const res = await fetch("/api/favorites");
       if (!res.ok) return;
       const data = await res.json();
       const ids = new Set<string>(data.map((f: any) => f.restaurantId));
@@ -110,7 +110,6 @@ export default function RestaurantSearchPage({ userId, userName }: RestaurantSea
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: userId,
           restaurantId: restaurant.id,
           restaurantName: restaurant.name,
           categories: restaurant.categories,
@@ -145,7 +144,7 @@ export default function RestaurantSearchPage({ userId, userName }: RestaurantSea
       await fetch("/api/track-click", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: userId, restaurantId, restaurantName, action, metadata }),
+        body: JSON.stringify({ restaurantId, restaurantName, action, metadata }),
       });
     } catch {
       // fire-and-forget
@@ -157,7 +156,7 @@ export default function RestaurantSearchPage({ userId, userName }: RestaurantSea
       await fetch("/api/insights", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: userId }),
+        body: JSON.stringify({}),
       });
     } catch {
       // background task, silently fail

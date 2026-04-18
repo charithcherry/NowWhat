@@ -27,7 +27,7 @@ interface MoodCheckinProps {
   userId: string;
 }
 
-export default function MoodCheckin({ userId }: MoodCheckinProps) {
+export default function MoodCheckin({ userId: _userId }: MoodCheckinProps) {
   const [data, setData] = useState<MoodData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedRating, setSelectedRating] = useState<number | null>(null);
@@ -41,7 +41,7 @@ export default function MoodCheckin({ userId }: MoodCheckinProps) {
 
   async function loadMood() {
     try {
-      const res = await fetch(apiUrl(`/api/mood?userId=${userId}`));
+      const res = await fetch(apiUrl("/api/mood"));
       if (res.ok) {
         const d = await res.json();
         setData(d);
@@ -62,7 +62,7 @@ export default function MoodCheckin({ userId }: MoodCheckinProps) {
       const res = await fetch(apiUrl("/api/mood"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, rating: selectedRating, note }),
+        body: JSON.stringify({ rating: selectedRating, note }),
       });
       if (res.ok) {
         setJustSubmitted(true);

@@ -26,6 +26,7 @@ interface NavigationProps {
 }
 
 const menuItems: MenuItem[] = [
+  { name: "Dashboard", href: process.env.NEXT_PUBLIC_FITNESS_URL || "http://localhost:3005", icon: Activity, color: "text-doom-accent", external: true },
   { name: "Physical Fitness", href: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/fitness`, icon: Dumbbell, color: "text-doom-primary", external: true },
   { name: "Nutrition", href: process.env.NEXT_PUBLIC_NUTRITION_URL || "http://localhost:3003", icon: Apple, color: "text-green-400", external: true },
   { name: "Find Restaurants", href: process.env.NEXT_PUBLIC_RESTAURANTS_URL || "http://localhost:3004", icon: UtensilsCrossed, color: "text-yellow-400", external: true },
@@ -106,7 +107,7 @@ export function Navigation({ user }: NavigationProps) {
                   {/* Profile Section */}
                   <a href={`${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/profile`} className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-doom-bg/30 hover:bg-doom-bg/50 transition-colors">
                     <UserRound className="w-5 h-5 text-doom-primary" />
-                    <span className="text-sm font-medium text-doom-text">{user.name}</span>
+                    <span className="text-sm font-medium text-doom-text">Profile</span>
                   </a>
 
                   {/* Logout Button */}

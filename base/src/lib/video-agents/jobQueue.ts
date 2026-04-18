@@ -20,6 +20,7 @@ export type JobStatus = 'queued' | 'running' | 'testing' | 'retrying' | 'done' |
 
 export interface Job {
   id: string;
+  userId: string;
   exercise: string;
   status: JobStatus;
   statusDetail: string;
@@ -49,10 +50,15 @@ export function getJob(id: string): Job | undefined {
   return jobs.get(id);
 }
 
-export function createJob(exercise: string): string {
+export function getJobsForUser(userId: string): Job[] {
+  return Array.from(jobs.values()).filter((job) => job.userId === userId);
+}
+
+export function createJob(exercise: string, userId: string): string {
   const id = `job_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   jobs.set(id, {
     id,
+    userId,
     exercise,
     status: 'queued',
     statusDetail: 'Queued',

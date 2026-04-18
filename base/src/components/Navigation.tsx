@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Menu, X, Dumbbell, Apple, Droplet, UtensilsCrossed, Users2, Activity, UserRound, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 interface MenuItem {
   name: string;
@@ -66,26 +65,12 @@ const menuItems: MenuItem[] = [
 
 export function Navigation({ user }: NavigationProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const router = useRouter();
 
   const getHref = (item: MenuItem) => item.href;
 
   const handleExternalNav = async (e: React.MouseEvent, href: string) => {
     e.preventDefault();
-    try {
-      const res = await fetch('/api/auth/token');
-      if (res.ok) {
-        const { token } = await res.json();
-        const target = new URL(href);
-        // Route through the handoff endpoint which sets the cookie via Route Handler
-        const handoffUrl = `${target.origin}/api/auth/handoff?token=${token}&redirect=/`;
-        window.location.href = handoffUrl;
-      } else {
-        window.location.href = href;
-      }
-    } catch {
-      window.location.href = href;
-    }
+    window.location.href = `/api/auth/handoff?target=${encodeURIComponent(href)}`;
   };
 
   const handleLogout = async () => {
@@ -151,7 +136,7 @@ export function Navigation({ user }: NavigationProps) {
                   {/* Profile Section */}
                   <Link href="/profile" className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-doom-bg/30 hover:bg-doom-bg/50 transition-colors">
                     <UserRound className="w-5 h-5 text-doom-primary" />
-                    <span className="text-sm font-medium text-doom-text">{user.name}</span>
+                    <span className="text-sm font-medium text-doom-text">Profile</span>
                   </Link>
 
                   {/* Logout Button */}

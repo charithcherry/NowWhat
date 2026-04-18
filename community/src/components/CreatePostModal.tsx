@@ -22,7 +22,7 @@ interface CreatePostModalProps {
   onCreated: () => void;
 }
 
-export default function CreatePostModal({ userId, onClose, onCreated }: CreatePostModalProps) {
+export default function CreatePostModal({ userId: _userId, onClose, onCreated }: CreatePostModalProps) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -54,8 +54,6 @@ export default function CreatePostModal({ userId, onClose, onCreated }: CreatePo
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId,
-          displayName: "You",
           title: title.trim(),
           body: body.trim(),
           tags: selectedTags,

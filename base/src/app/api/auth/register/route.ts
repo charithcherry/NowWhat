@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     const db = await getDatabase();
+    await db.collection('users').createIndex({ email: 1 }, { unique: true }).catch(() => {});
 
     // Check if user already exists
     const existingUser = await db.collection('users').findOne({ email: email.toLowerCase() });
@@ -76,6 +77,13 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
+    if ((error as { code?: number })?.code === 11000) {
+      return NextResponse.json(
+        { error: 'User with this email already exists' },
+        { status: 409 }
+      );
+    }
+
     console.error('Registration error:', error);
     return NextResponse.json(
       { error: 'Internal server error during registration' },
