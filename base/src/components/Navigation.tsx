@@ -40,6 +40,23 @@ export function Navigation({ user }: NavigationProps) {
 
   const getHref = (item: MenuItem) => item.href;
 
+  const handleExternalNav = async (e: React.MouseEvent, href: string) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/auth/token');
+      if (res.ok) {
+        const { token } = await res.json();
+        const url = new URL(href);
+        url.searchParams.set('token', token);
+        window.location.href = url.toString();
+      } else {
+        window.location.href = href;
+      }
+    } catch {
+      window.location.href = href;
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
@@ -74,6 +91,7 @@ export function Navigation({ user }: NavigationProps) {
                     <a
                       key={item.name}
                       href={getHref(item)}
+                      onClick={(e) => handleExternalNav(e, getHref(item))}
                       className={`flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-doom-bg/50 transition-colors ${item.color}`}
                     >
                       <Icon className="w-5 h-5" />
@@ -183,7 +201,7 @@ export function Navigation({ user }: NavigationProps) {
                       {item.external ? (
                         <a
                           href={getHref(item)}
-                          onClick={() => setIsOpen(false)}
+                          onClick={(e) => { setIsOpen(false); handleExternalNav(e, getHref(item)); }}
                           className={`flex items-center space-x-4 p-4 rounded-lg hover:bg-doom-bg/50 transition-colors group ${item.color}`}
                         >
                           <div className="p-2 rounded-lg bg-doom-bg/50 group-hover:scale-110 transition-transform">

@@ -40,3 +40,6 @@ export async function getDb(): Promise<Db> {
   const client = await getClientPromise();
   return client.db(DB_NAME);
 }
+
+// Alias so shared auth.ts (which imports getDatabase) works consistently
+export const getDatabase = getDb;

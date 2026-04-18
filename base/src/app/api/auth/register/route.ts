@@ -54,8 +54,8 @@ export async function POST(request: NextRequest) {
       created_at: new Date(),
     });
 
-    // Generate JWT token
-    const token = generateToken({
+    // Generate Database Session Token
+    const token = await generateToken({
       userId: result.insertedId.toString(),
       email: email.toLowerCase(),
       name,
