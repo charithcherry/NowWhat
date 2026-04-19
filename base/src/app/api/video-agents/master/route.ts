@@ -41,6 +41,76 @@ ACTIONS:
 
 Exercises supported: squat, deadlift, lunge, push up, pull up, bicep curl, lateral raise, shoulder press, bench press, row, plank.`;
 
+function parseCameraCue(userMessage: string): string {
+  const cameraMatch = userMessage.match(/Camera:\s*([^\]]+)/i);
+  const rawCue = cameraMatch?.[1]?.trim().toLowerCase() || '';
+
+  if (rawCue.includes('front')) {
+    return 'Face the camera, full body visible. Hit start when you are ready.';
+  }
+
+  if (rawCue.includes('side')) {
+    return 'Stand sideways, full body visible. Hit start when you are ready.';
+  }
+
+  return 'Full body visible. Hit start when you are ready.';
+}
+
+function buildFallbackResponse(params: {
+  userMessage: string;
+  currentState: string;
+  exerciseName: string | null;
+  jobStatus: string | null;
+}) {
+  const { userMessage, currentState, exerciseName, jobStatus } = params;
+  const normalized = userMessage.toLowerCase();
+
+  if (normalized.includes('analyzer ready')) {
+    return {
+      response: parseCameraCue(userMessage),
+      action: null,
+      exerciseName: exerciseName || null,
+      nextState: 'ready',
+    };
+  }
+
+  if (normalized.includes('exercise generation failed')) {
+    return {
+      response: 'Had trouble setting that up. Want to try again?',
+      action: null,
+      exerciseName: exerciseName || null,
+      nextState: exerciseName ? 'gathering' : currentState,
+    };
+  }
+
+  if (jobStatus && ['queued', 'running', 'testing', 'retrying'].includes(jobStatus)) {
+    return {
+      response: exerciseName
+        ? `Still setting up your ${exerciseName}. What is the focus for it?`
+        : 'Still setting that up. What are you working on today?',
+      action: null,
+      exerciseName: exerciseName || null,
+      nextState: 'preparing',
+    };
+  }
+
+  if (currentState === 'ready') {
+    return {
+      response: 'Your exercise is ready. Hit start when you are set.',
+      action: null,
+      exerciseName: exerciseName || null,
+      nextState: 'ready',
+    };
+  }
+
+  return {
+    response: 'Tell me what exercise you want to do.',
+    action: null,
+    exerciseName: exerciseName || null,
+    nextState: currentState,
+  };
+}
+
 async function callMasterGemini(prompt: string): Promise<string> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`,
@@ -156,13 +226,19 @@ export async function POST(req: NextRequest) {
       responseText = '';
     }
 
-    responseText = responseText.trim() || 'Got it.';
+    responseText = responseText.trim();
+    const fallback = buildFallbackResponse({
+      userMessage,
+      currentState,
+      exerciseName,
+      jobStatus,
+    });
 
     return NextResponse.json({
-      response: responseText,
-      action: parsed.action || null,
-      exerciseName: parsed.exerciseName || exerciseName || null,
-      nextState: parsed.nextState || currentState,
+      response: responseText || fallback.response,
+      action: parsed.action || fallback.action || null,
+      exerciseName: parsed.exerciseName || fallback.exerciseName || exerciseName || null,
+      nextState: parsed.nextState || fallback.nextState || currentState,
     });
 
   } catch (e: any) {

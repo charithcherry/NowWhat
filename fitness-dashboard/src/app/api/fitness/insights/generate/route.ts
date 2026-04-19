@@ -27,11 +27,11 @@ function round(value: number): number {
 
 function buildInsights(userId: string, sessions: any[], biomechanics: any[]): FitnessInsight[] {
   const now = new Date();
-  const formScores = sessions.map((s) => Number(s.form_score)).filter(Number.isFinite);
-  const postureScores = sessions.map((s) => Number(s.posture_score)).filter(Number.isFinite);
-  const reps = sessions.map((s) => Number(s.reps)).filter(Number.isFinite);
+  const formScores = sessions.map((s) => Number(s.avg_form_score)).filter(Number.isFinite);
+  const postureScores = sessions.map((s) => Number(s.avg_posture_score)).filter(Number.isFinite);
+  const reps = sessions.map((s) => Number(s.reps_completed)).filter(Number.isFinite);
   const recentSessions = sessions.slice(-7);
-  const recentReps = recentSessions.map((s) => Number(s.reps)).filter(Number.isFinite);
+  const recentReps = recentSessions.map((s) => Number(s.reps_completed)).filter(Number.isFinite);
   const latestBiomechanics = biomechanics[biomechanics.length - 1];
 
   const insights: FitnessInsight[] = [];
@@ -114,14 +114,14 @@ export async function POST() {
     const db = await getDatabase();
     const [sessions, biomechanics] = await Promise.all([
       db
-        .collection("sessions")
+        .collection("fitness_sessions")
         .find({ user_id: user.userId })
-        .sort({ date: 1, created_at: 1 })
+        .sort({ ended_at: 1, started_at: 1 })
         .toArray(),
       db
         .collection("fitness_exercise_biomechanics")
         .find({ user_id: user.userId })
-        .sort({ created_at: 1 })
+        .sort({ _id: 1 })
         .toArray(),
     ]);
 

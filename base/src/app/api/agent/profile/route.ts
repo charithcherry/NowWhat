@@ -132,9 +132,9 @@ export async function GET(req: NextRequest) {
     const recipeTags = [...new Set(generatedRecipes.flatMap((r: any) => r.tags || []))];
     const latestYelpInsight = yelpInsights[0]?.insight || null;
 
-    const prompt = `You are building a personalized user profile context for a wellness AI assistant chatbot called WellBeing Agent.
+    const prompt = `You are building a personalized user profile context for a wellness AI assistant chatbot called What Now? Agent.
 
-Below is REAL data collected from this user's activity in the past 2 days across the WellBeing app. Synthesize it into a clear, warm, specific profile (4-6 sentences) written in second person. This will be injected into every chat session.
+Below is REAL data collected from this user's activity in the past 2 days across the What Now? app. Synthesize it into a clear, warm, specific profile (4-6 sentences) written in second person. This will be injected into every chat session.
 
 ---
 
@@ -207,7 +207,7 @@ Now write a 4-6 sentence profile context in second person ("You are someone who.
 
     const profileContext =
       (await geminiCall(prompt)) ||
-      `You are ${userDoc?.name || "a WellBeing user"}, someone dedicated to health and wellness who tracks fitness, nutrition, and skincare.`;
+      `You are ${userDoc?.name || "a What Now? user"}, someone dedicated to health and wellness who tracks fitness, nutrition, and skincare.`;
 
     // ── Save to MongoDB cache (upsert, 24hr TTL) ──────────────
     const now = new Date();

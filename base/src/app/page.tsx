@@ -257,7 +257,7 @@ export default function Home() {
                   <User className="w-8 h-8 text-doom-bg" />
                 </div>
                 <h1 className={`${headingFont.className} text-3xl font-bold text-doom-text mb-2`}>
-                  Welcome to WellBeing
+                  Welcome to What Now?
                 </h1>
                 <p className="text-doom-muted">
                   {authMode === "login" ? "Sign in to continue" : "Create your account"}

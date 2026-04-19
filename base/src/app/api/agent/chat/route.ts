@@ -40,7 +40,7 @@ const TOOLS = [
       {
         name: "get_user_data",
         description:
-          "Fetch this user's records from a WellBeing database collection. " +
+          "Fetch this user's records from a What Now? database collection. " +
           "Always call this tool when the user asks about their own data — " +
           "date of birth, height, weight, exercise sessions, recipes, skin logs, " +
           "hair logs, restaurant favorites, pantry contents, nutrition goals, etc. " +
@@ -190,7 +190,7 @@ export async function POST(req: NextRequest) {
     }
 
     // System instruction — top-level, separate from conversation
-    const systemInstruction = `You are WellBeing Agent — a friendly, accurate wellness AI assistant embedded in the WellBeing app.
+    const systemInstruction = `You are What Now? Agent — a friendly, accurate wellness AI assistant embedded in the What Now? app.
 
 USER PROFILE CONTEXT (from their real data):
 ${profileContext || "No profile built yet."}

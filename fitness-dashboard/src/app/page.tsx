@@ -16,8 +16,12 @@ export default async function FitnessDashboard() {
   const userId = user.userId;
   const db = await getDatabase();
 
-  // 1. Fetch form sessions
-  const sessions = await db.collection("sessions").find({ user_id: userId }).toArray();
+  // 1. Fetch fitness sessions
+  const sessions = await db
+    .collection("fitness_sessions")
+    .find({ user_id: userId })
+    .sort({ ended_at: 1, started_at: 1 })
+    .toArray();
   
   // 2. Fetch biomechanics
   const biomechanics = await db.collection("fitness_exercise_biomechanics").find({ user_id: userId }).toArray();
@@ -33,13 +37,43 @@ export default async function FitnessDashboard() {
 
   if (sessions.length > 0) {
      const lastSession = sessions[sessions.length - 1];
-     avgForm = parseFloat((lastSession.form_score || 0).toFixed(1));
-     avgPosture = parseFloat((lastSession.posture_score || 0).toFixed(1));
-     avgArm = parseFloat((lastSession.arm_position_score || 0).toFixed(1));
-     avgVisibility = parseFloat((lastSession.visibility_score || 0).toFixed(1));
+     avgForm = parseFloat((lastSession.avg_form_score || 0).toFixed(1));
+     avgPosture = parseFloat((lastSession.avg_posture_score || 0).toFixed(1));
+     avgArm = parseFloat((lastSession.avg_arm_position_score || 0).toFixed(1));
+     avgVisibility = parseFloat((lastSession.avg_visibility_score || 0).toFixed(1));
   }
 
-  sessions.forEach(s => totalReps += (s.reps || 0));
+  sessions.forEach(s => totalReps += (s.reps_completed || 0));
+
+  const dailyExerciseMap = new Map<string, Record<string, number | string>>();
+  const exerciseKeySet = new Set<string>();
+
+  sessions.forEach((session) => {
+    const exerciseName = String(session.exercise_name || "Unknown");
+    const repsCompleted = Number(session.reps_completed || 0);
+    const endedAt = session.ended_at ? new Date(session.ended_at) : null;
+    const dayKey = endedAt && !Number.isNaN(endedAt.getTime())
+      ? endedAt.toISOString().slice(0, 10)
+      : "Unknown";
+
+    exerciseKeySet.add(exerciseName);
+
+    if (!dailyExerciseMap.has(dayKey)) {
+      dailyExerciseMap.set(dayKey, {
+        date: dayKey,
+        total: 0,
+      });
+    }
+
+    const dayEntry = dailyExerciseMap.get(dayKey)!;
+    dayEntry[exerciseName] = Number(dayEntry[exerciseName] || 0) + repsCompleted;
+    dayEntry.total = Number(dayEntry.total || 0) + repsCompleted;
+  });
+
+  const exerciseKeys = Array.from(exerciseKeySet).sort();
+  const dailyExerciseData = Array.from(dailyExerciseMap.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([, value]) => value);
 
   const radarData = sessions.length > 0 ? [
     { metric: "Form", score: avgForm },
@@ -62,11 +96,11 @@ export default async function FitnessDashboard() {
   const motivationData = moods.map((m, i) => ({
      rating: m.rating || 5,
      note: m.note || "Good workout!",
-     date: m.date || new Date().toISOString(),
+     date: m.date || m.created_at || new Date().toISOString(),
      reps: i === 0 ? totalReps : (totalReps > 20 ? totalReps - 10 : 0) // just to show varying reps if present
   }));
   
-  const mostRecentDate = sessions.length > 0 ? sessions[sessions.length - 1].date : null;
+  const mostRecentDate = sessions.length > 0 ? sessions[sessions.length - 1].ended_at : null;
 
   const totals = {
     totalSessions: sessions.length,
@@ -83,6 +117,8 @@ export default async function FitnessDashboard() {
          userName={user.name}
          radarData={radarData} 
          symmetryData={symmetryData} 
+         dailyExerciseData={dailyExerciseData}
+         exerciseKeys={exerciseKeys}
          motivationData={motivationData} 
          totals={totals}
       />
