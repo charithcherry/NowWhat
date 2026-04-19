@@ -45,6 +45,68 @@ function isUsableProfileContext(value: string | null | undefined): value is stri
   return sentenceCount >= 2;
 }
 
+const AGENT_TIME_ZONE = process.env.AGENT_TIME_ZONE || "America/Denver";
+
+function getDateTimePartMap(value: Date, options: Intl.DateTimeFormatOptions) {
+  return new Intl.DateTimeFormat("en-US", options)
+    .formatToParts(value)
+    .reduce<Record<string, string>>((acc, part) => {
+      if (part.type !== "literal") {
+        acc[part.type] = part.value;
+      }
+      return acc;
+    }, {});
+}
+
+function getCurrentDateTimeContext(now: Date = new Date(), timeZone = AGENT_TIME_ZONE) {
+  const dateParts = getDateTimePartMap(now, {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const timeParts = getDateTimePartMap(now, {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+
+  return {
+    timeZone,
+    dateKey: `${dateParts.year || "0000"}-${dateParts.month || "01"}-${dateParts.day || "01"}`,
+    timeKey: `${timeParts.hour || "00"}:${timeParts.minute || "00"}`,
+    dateTimeText: new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    }).format(now),
+  };
+}
+
+function isUpcomingCommunityEvent(event: Record<string, any>, current = getCurrentDateTimeContext()) {
+  const eventDate = String(event.date || "").trim();
+  if (!eventDate) return false;
+  if (eventDate > current.dateKey) return true;
+  if (eventDate < current.dateKey) return false;
+
+  const eventTime = String(event.time || "").trim();
+  if (!eventTime) return true;
+  return eventTime >= current.timeKey;
+}
+
+function formatEventSummary(event: Record<string, any>) {
+  const eventDate = event.date ? formatCalendarDate(String(event.date)) || String(event.date) : "an unknown date";
+  const eventTime = String(event.time || "").trim();
+  const timeText = eventTime ? ` at ${eventTime}` : "";
+  const locationText = event.location ? ` in ${event.location}` : "";
+  return `${event.title} on ${eventDate}${timeText}${locationText}`;
+}
+
 function buildFallbackProfileContext(params: {
   userDoc: any;
   userProfile: any;
@@ -124,6 +186,7 @@ export async function GET(req: NextRequest) {
 
   const userId = user.userId;
   const db = await getDatabase();
+  const currentContext = getCurrentDateTimeContext();
 
   try {
     let objId: ObjectId | null = null;
@@ -173,7 +236,7 @@ export async function GET(req: NextRequest) {
       db.collection("community_posts").find({ user_id: userId, created_at: { $gte: twoDaysAgo } }).sort({ created_at: -1 }).limit(5).toArray(),
       db.collection("community_comments").find({ user_id: userId, created_at: { $gte: twoDaysAgo } }).sort({ created_at: -1 }).limit(5).toArray(),
       db.collection("community_moods").find({ user_id: userId, created_at: { $gte: twoDaysAgo } }).sort({ created_at: -1 }).limit(5).toArray(),
-      db.collection("community_events").find({ attendees: userId, date: { $gte: new Date().toISOString().split("T")[0] } }).sort({ date: 1 }).limit(5).toArray(),
+      db.collection("community_events").find({ attendees: userId, date: { $gte: currentContext.dateKey } }).sort({ date: 1, time: 1 }).limit(20).toArray(),
       db.collection("community_connections").find({ $or: [{ from_user_id: userId }, { to_user_id: userId }] }).sort({ timestamp: -1 }).limit(10).toArray(),
     ]);
 
@@ -220,10 +283,12 @@ export async function GET(req: NextRequest) {
     const recipeTitles = generatedRecipes.map((r: any) => r.title);
     const recipeTags = [...new Set(generatedRecipes.flatMap((r: any) => r.tags || []))];
     const latestYelpInsight = yelpInsights[0]?.insight || null;
+    const upcomingCommunityEvents = communityEvents.filter((event: any) => isUpcomingCommunityEvent(event, currentContext)).slice(0, 5);
 
     const prompt = `You are building a personalized user profile context for a wellness AI assistant chatbot called What Now? Agent.
 
 Below is REAL data collected from this user's activity in the past 2 days across the What Now? app. Synthesize it into a clear, warm, specific profile (4-6 sentences) written in second person. This will be injected into every chat session.
+Current local date/time for interpreting recency and upcoming events: ${currentContext.dateTimeText}.
 
 ---
 
@@ -274,7 +339,7 @@ ${nutritionSession ? `- Actions taken: ${nutritionSession.action_types?.join(" â
 - Posts shared: ${communityPosts.length > 0 ? communityPosts.map((p:any) => `"${p.title}" [${p.tags?.join(", ")}]`).join("; ") : "none"}
 - Comments made: ${communityComments.length > 0 ? `${communityComments.length} comment(s)` : "none"}
 - Mood check-ins: ${communityMoods.length > 0 ? communityMoods.map((m:any) => `${m.rating}/5${m.note ? ` ("${m.note}")` : ""}`).join(", ") : "none"}
-- Upcoming events attending: ${communityEvents.length > 0 ? communityEvents.map((e:any) => `${e.title} on ${e.date}`).join(", ") : "none"}
+- Upcoming events attending: ${upcomingCommunityEvents.length > 0 ? upcomingCommunityEvents.map((e:any) => formatEventSummary(e)).join(", ") : "none"}
 - Connections made: ${communityConnections.length > 0 ? communityConnections.length : "none"}
 
 ## AI-GENERATED INSIGHTS (past 2 days)
