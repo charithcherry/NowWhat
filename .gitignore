@@ -47,6 +47,7 @@ next-env.d.ts
 # Claude
 .claude/
 **/.claude/
+.codex-logs/
 
 # Exercise logs (runtime generated)
 **/exercise-log.txt

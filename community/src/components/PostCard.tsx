@@ -76,7 +76,7 @@ export default function PostCard({ post, currentUserId, index, onUpvote, isConne
     setShowComments(true);
     setLoadingComments(true);
     try {
-      const res = await fetch(`/api/comments?postId=${post._id}`);
+      const res = await fetch(apiUrl(`/api/comments?postId=${post._id}`));
       if (res.ok) {
         const data = await res.json();
         setComments(data);

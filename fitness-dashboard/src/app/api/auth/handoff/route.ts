@@ -1,6 +1,20 @@
+import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
-import { getSessionToken } from '@/lib/auth';
+import { getSessionToken, setAuthCookie } from '@/lib/auth';
+
+const HANDOFF_COLLECTION = 'auth_handoffs';
+const HANDOFF_TTL_SECONDS = 60;
+
+type AuthHandoffDocument = {
+  handoffId: string;
+  sessionToken: string;
+  sourceOrigin: string;
+  targetOrigin: string;
+  redirectPath: string;
+  createdAt: Date;
+  expiresAt: Date;
+};
 
 function getAllowedOrigins() {
   const configuredOrigins = [
@@ -63,36 +77,89 @@ function isLocalDevOrigin(origin: string): boolean {
   }
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+async function ensureHandoffIndexes() {
+  const db = await getDatabase();
+  const collection = db.collection<AuthHandoffDocument>(HANDOFF_COLLECTION);
+  await collection.createIndex({ handoffId: 1 }, { unique: true }).catch(() => {});
+  await collection.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }).catch(() => {});
+}
+
+async function createHandoffGrant(params: {
+  sessionToken: string;
+  sourceOrigin: string;
+  targetOrigin: string;
+  redirectPath: string;
+}): Promise<string | null> {
+  const db = await getDatabase();
+  const now = new Date();
+  const session = await db.collection('sessions').findOne({
+    token: params.sessionToken,
+    expiresAt: { $gt: now },
+  });
+
+  if (!session) {
+    return null;
+  }
+
+  const handoffId = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(now.getTime() + HANDOFF_TTL_SECONDS * 1000);
+
+  await ensureHandoffIndexes();
+  await db.collection<AuthHandoffDocument>(HANDOFF_COLLECTION).insertOne({
+    handoffId,
+    sessionToken: params.sessionToken,
+    sourceOrigin: params.sourceOrigin,
+    targetOrigin: params.targetOrigin,
+    redirectPath: params.redirectPath,
+    createdAt: now,
+    expiresAt,
+  });
+
+  return handoffId;
+}
+
+function renderHandoffPage(params: { actionUrl: string; handoffId: string }) {
+  const actionUrl = escapeHtml(params.actionUrl);
+  const handoffId = escapeHtml(params.handoffId);
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Signing you in...</title>
+  </head>
+  <body>
+    <form id="handoff-form" method="POST" action="${actionUrl}">
+      <input type="hidden" name="handoffId" value="${handoffId}" />
+      <noscript>
+        <p>Continue to complete sign-in.</p>
+        <button type="submit">Continue</button>
+      </noscript>
+    </form>
+    <script>
+      document.getElementById('handoff-form')?.submit();
+    </script>
+  </body>
+</html>`;
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const token = request.nextUrl.searchParams.get('token');
     const target = request.nextUrl.searchParams.get('target');
 
-    if (token) {
-      const redirectPath = getSafeRedirectPath(request.nextUrl.searchParams.get('redirect'));
-      const db = await getDatabase();
-      const session = await db.collection('sessions').findOne({
-        token,
-        expiresAt: { $gt: new Date() },
-      });
-
-      if (!session) {
-        return NextResponse.json({ error: 'Invalid or expired handoff token' }, { status: 401 });
-      }
-
-      const response = NextResponse.redirect(new URL(redirectPath, request.nextUrl.origin));
-      response.cookies.set('auth_token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7,
-        path: '/',
-      });
-      return response;
-    }
-
     if (!target) {
-      return NextResponse.json({ error: 'target or token is required' }, { status: 400 });
+      return NextResponse.json({ error: 'target is required' }, { status: 400 });
     }
 
     let targetUrl: URL;
@@ -117,10 +184,63 @@ export async function GET(request: NextRequest) {
     }
 
     const redirectPath = getSafeRedirectPath(`${targetUrl.pathname}${targetUrl.search}`);
+    const handoffId = await createHandoffGrant({
+      sessionToken,
+      sourceOrigin: request.nextUrl.origin,
+      targetOrigin: targetUrl.origin,
+      redirectPath,
+    });
+
+    if (!handoffId) {
+      return NextResponse.redirect(targetUrl);
+    }
+
     const handoffUrl = new URL('/api/auth/handoff', targetUrl.origin);
-    handoffUrl.searchParams.set('token', sessionToken);
-    handoffUrl.searchParams.set('redirect', redirectPath);
-    return NextResponse.redirect(handoffUrl);
+    return new NextResponse(renderHandoffPage({ actionUrl: handoffUrl.toString(), handoffId }), {
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store, no-cache, max-age=0',
+        'referrer-policy': 'no-referrer',
+      },
+    });
+  } catch (error) {
+    console.error('Auth handoff error:', error);
+    return NextResponse.json({ error: 'Failed to complete auth handoff' }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const formData = await request.formData();
+    const handoffId = String(formData.get('handoffId') || '').trim();
+
+    if (!handoffId) {
+      return NextResponse.json({ error: 'handoffId is required' }, { status: 400 });
+    }
+
+    const db = await getDatabase();
+    const now = new Date();
+    const handoff = await db.collection<AuthHandoffDocument>(HANDOFF_COLLECTION).findOneAndDelete({
+      handoffId,
+      expiresAt: { $gt: now },
+      targetOrigin: request.nextUrl.origin,
+    });
+
+    if (!handoff) {
+      return NextResponse.json({ error: 'Invalid or expired handoff grant' }, { status: 401 });
+    }
+
+    const session = await db.collection('sessions').findOne({
+      token: handoff.sessionToken,
+      expiresAt: { $gt: now },
+    });
+
+    if (!session) {
+      return NextResponse.json({ error: 'Invalid or expired session' }, { status: 401 });
+    }
+
+    await setAuthCookie(handoff.sessionToken);
+    return NextResponse.redirect(new URL(handoff.redirectPath, request.nextUrl.origin));
   } catch (error) {
     console.error('Auth handoff error:', error);
     return NextResponse.json({ error: 'Failed to complete auth handoff' }, { status: 500 });

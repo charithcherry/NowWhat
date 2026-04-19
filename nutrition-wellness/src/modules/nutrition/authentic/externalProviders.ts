@@ -3,6 +3,7 @@ import type {
   AuthenticDishProviderName,
   ParsedAuthenticDishQuery,
 } from "../types";
+import { sanitizeAuthenticIngredients } from "./entryQuality";
 import { isGenericDishPhrase, normalizeDishText } from "./queryParser";
 
 const DEFAULT_TIMEOUT_MS = 4500;
@@ -201,24 +202,6 @@ function deriveCuisine(parts: Array<string | undefined>, fallbackCuisine?: strin
   return fallbackCuisine || "Global";
 }
 
-function extractIngredientPhrases(raw: string, maxItems = 8) {
-  return uniqueStrings(
-    raw
-      .split(/[;,]/)
-      .map((item) =>
-        item
-          .replace(/\([^)]*\)/g, " ")
-          .replace(/\b\d+(?:\.\d+)?\b/g, " ")
-          .replace(/\b(and|or|contains|made with|may contain)\b/gi, " ")
-          .replace(/[%]/g, " ")
-          .trim(),
-      )
-      .map((item) => item.replace(/\s+/g, " "))
-      .filter((item) => item.length >= 3)
-      .slice(0, maxItems),
-  );
-}
-
 function buildBaselineSteps(summary: string, ingredients: string[]) {
   const summaryNorm = normalizeDishText(summary);
 
@@ -327,12 +310,8 @@ async function enrichWithUsda(entry: AuthenticDishLibraryEntry): Promise<Partial
   try {
     const body = await fetchJson<UsdaSearchResponse>(url, { timeoutMs: 3500 });
     const foods = body.foods || [];
-    const ingredientCandidates = uniqueStrings(
-      foods.flatMap((food) => extractIngredientPhrases(food.ingredients || "")).slice(0, 12),
-    );
 
     return {
-      core_ingredients: uniqueStrings([...entry.core_ingredients, ...ingredientCandidates]).slice(0, 12),
       nutrition_notes: ingredientNotesFromUsda(foods),
     };
   } catch (error) {
@@ -353,14 +332,8 @@ async function enrichWithOpenFoodFacts(entry: AuthenticDishLibraryEntry): Promis
   try {
     const body = await fetchJson<OpenFoodFactsSearchResponse>(url, { timeoutMs: 3500 });
     const products = body.products || [];
-    const ingredientCandidates = uniqueStrings(
-      products
-        .flatMap((product) => extractIngredientPhrases(product.ingredients_text_en || product.ingredients_text || ""))
-        .slice(0, 12),
-    );
 
     return {
-      core_ingredients: uniqueStrings([...entry.core_ingredients, ...ingredientCandidates]).slice(0, 12),
       nutrition_notes: ingredientNotesFromOpenFoodFacts(products),
     };
   } catch (error) {
@@ -371,17 +344,15 @@ async function enrichWithOpenFoodFacts(entry: AuthenticDishLibraryEntry): Promis
 
 export async function enrichAuthenticDishEntry(entry: AuthenticDishLibraryEntry): Promise<AuthenticDishLibraryEntry> {
   const [usda, off] = await Promise.all([enrichWithUsda(entry), enrichWithOpenFoodFacts(entry)]);
-  const combinedIngredients = uniqueStrings([
-    ...entry.core_ingredients,
-    ...(usda.core_ingredients || []),
-    ...(off.core_ingredients || []),
-  ]).slice(0, 12);
   const nutritionNotes = uniqueStrings([...(entry.nutrition_notes || []), ...(usda.nutrition_notes || []), ...(off.nutrition_notes || [])]).slice(0, 6);
 
   return {
     ...entry,
-    core_ingredients: combinedIngredients,
-    baseline_steps: entry.baseline_steps.length > 0 ? entry.baseline_steps : buildBaselineSteps(entry.traditional_summary, combinedIngredients),
+    core_ingredients: sanitizeAuthenticIngredients(entry.core_ingredients || []),
+    baseline_steps:
+      entry.baseline_steps.length > 0
+        ? entry.baseline_steps
+        : buildBaselineSteps(entry.traditional_summary, sanitizeAuthenticIngredients(entry.core_ingredients || [])),
     nutrition_notes: nutritionNotes,
   };
 }

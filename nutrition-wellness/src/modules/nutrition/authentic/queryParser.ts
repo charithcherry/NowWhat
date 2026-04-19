@@ -60,6 +60,19 @@ const GENERIC_DISH_TOKENS = new Set([
   "version",
 ]);
 
+const STOPWORD_TOKENS = new Set([
+  "a",
+  "an",
+  "and",
+  "for",
+  "in",
+  "of",
+  "on",
+  "the",
+  "to",
+  "with",
+]);
+
 function collapseWhitespace(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
@@ -137,7 +150,9 @@ export function tokenizeDishText(value: string) {
 }
 
 export function meaningfulDishTokens(value: string) {
-  const tokens = tokenizeDishText(value).filter((token) => !GENERIC_DISH_TOKENS.has(token));
+  const tokens = tokenizeDishText(value).filter(
+    (token) => !GENERIC_DISH_TOKENS.has(token) && !STOPWORD_TOKENS.has(token),
+  );
   return tokens.length > 0 ? tokens : tokenizeDishText(value);
 }
 
