@@ -733,7 +733,7 @@ The user refactored the pipeline from raw code generation to a **spec-based engi
 - On logout: clears all `wb_agent_profile_*` from localStorage
 
 ### Gemini API
-- Old key (`AIzaSyDwRs6uRfbPMiJ7XE56iXrn-R9Z3rf_zSw`) was leaked via committed docs files — revoked
+- Old key was leaked via committed docs files — revoked
 - New key in all `.env.local` files (gitignored)
 - Model updated to `gemini-2.5-flash` (primary) — `gemini-2.0-flash` no longer available for new keys
 - All credentials redacted from all docs files
