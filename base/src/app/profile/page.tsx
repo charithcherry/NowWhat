@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Navigation } from "@/components/Navigation";
+import { formatCalendarDate } from "@/lib/calendarDate";
 import { User, Mail, Calendar, Loader2 } from "lucide-react";
 
 interface UserProfile {
@@ -203,7 +204,7 @@ export default function ProfilePage() {
                     <Calendar className="w-5 h-5 text-doom-primary" />
                     <span className="text-doom-text">
                       {extendedProfile.dateOfBirth
-                        ? new Date(extendedProfile.dateOfBirth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                        ? formatCalendarDate(extendedProfile.dateOfBirth)
                         : "Not set"}
                     </span>
                   </div>

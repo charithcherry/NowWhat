@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getCurrentUser } from "@/lib/auth";
+import { calculateAgeFromCalendarDate } from "@/lib/calendarDate";
 import { getDatabase } from "@/lib/mongodb";
 
 async function geminiCall(prompt: string): Promise<string> {
@@ -109,19 +110,7 @@ export async function GET(req: NextRequest) {
     // ── Build prompt sections ─────────────────────────────────
 
     // ── Age calculation ───────────────────────────────────────
-    function calculateAge(dob: string): number | null {
-      if (!dob) return null;
-      const birth = new Date(dob);
-      if (isNaN(birth.getTime())) return null;
-      const today = new Date();
-      let age = today.getFullYear() - birth.getFullYear();
-      const notYetHadBirthday =
-        today.getMonth() < birth.getMonth() ||
-        (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate());
-      if (notYetHadBirthday) age--;
-      return age;
-    }
-    const age = calculateAge(userProfile?.dateOfBirth);
+    const age = calculateAgeFromCalendarDate(userProfile?.dateOfBirth);
 
     const favCuisines = favorites.length > 0
       ? [...new Set(favorites.flatMap((f: any) => f.categories?.map((c: any) => c.title) || []))]
