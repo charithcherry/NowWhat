@@ -60,6 +60,16 @@ const DEFAULT_SORTS: Record<string, Record<string, 1 | -1>> = {
   community_connections: { timestamp: -1 },
 };
 
+const ALLOWED_JOIN_PAIRS = [
+  {
+    leftCollection: "saved_recipes",
+    rightCollection: "generated_recipes",
+    leftKey: "recipe_id",
+    rightKey: "_id",
+    description: "Join saved recipe records to generated recipe documents so the assistant can answer with saved dish titles and recipe details.",
+  },
+] as const;
+
 function formatAbsoluteDate(value: unknown): string | null {
   if (!value) return null;
   const parsed = new Date(String(value));
@@ -170,8 +180,61 @@ function normalizeCollectionRecord(collection: string, record: Record<string, an
   return base;
 }
 
+function getUserScopedFilter(collection: string, userId: string) {
+  if (collection === "community_connections") {
+    return { $or: [{ from_user_id: userId }, { to_user_id: userId }] };
+  }
+
+  const userIdField = ALLOWED_COLLECTIONS[collection];
+  return { [userIdField]: userId };
+}
+
+function buildJoinMatchVariants(value: unknown): unknown[] {
+  if (value === null || value === undefined) return [];
+
+  const variants = new Set<string>();
+  const rawValues: unknown[] = [];
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    rawValues.push(trimmed);
+    variants.add(trimmed);
+    if (ObjectId.isValid(trimmed)) {
+      rawValues.push(new ObjectId(trimmed));
+      variants.add(`oid:${trimmed}`);
+    }
+    return rawValues;
+  }
+
+  if (value instanceof ObjectId) {
+    rawValues.push(value);
+    variants.add(`oid:${value.toHexString()}`);
+    rawValues.push(value.toHexString());
+    variants.add(value.toHexString());
+    return rawValues;
+  }
+
+  if (
+    value &&
+    typeof value === "object" &&
+    "toHexString" in value &&
+    typeof (value as { toHexString?: unknown }).toHexString === "function"
+  ) {
+    const hex = (value as { toHexString: () => string }).toHexString();
+    rawValues.push(value);
+    variants.add(`oid:${hex}`);
+    rawValues.push(hex);
+    variants.add(hex);
+    return rawValues;
+  }
+
+  rawValues.push(value);
+  return rawValues;
+}
+
 function looksLikePersonalDataQuestion(message: string) {
-  return /\b(age|birthday|birth date|date of birth|dob|height|weight|workout|exercise|session|rep|reps|recipe|ingredients|instructions|restaurant|favorite|favourite|user id|userid|profile id)\b/i.test(message);
+  return /\b(age|birthday|birth date|date of birth|dob|height|weight|work(?:ed)?\s*out|workout|exercise|session|rep|reps|recipe|recipes|dish|dishes|ingredients|instructions|pantry|calorie|calories|protein|restriction|restrictions|restaurant|favorite|favourite|user id|userid|profile id)\b/i.test(message);
 }
 
 function isAgeQuestion(message: string) {
@@ -191,7 +254,7 @@ function isWeightQuestion(message: string) {
 }
 
 function isLatestWorkoutQuestion(message: string) {
-  return /\b(last|latest|most recent)\b.*\b(workout|exercise|session|rep|reps)\b|\bwhat was my last workout\b|\bwhat was my last rep count\b/i.test(message);
+  return /\b(last|latest|most recent)\b.*\b(work(?:ed)?\s*out|workout|exercise|session|rep|reps)\b|\bwhat was my last workout\b|\bwhat was my last rep count\b|\bwhen did i last work out\b|\bwhen was the last time i worked out\b/i.test(message);
 }
 
 function isWorkoutOnDateQuestion(message: string) {
@@ -546,6 +609,94 @@ const TOOLS = [
           required: ["collection"],
         },
       },
+      {
+        name: "get_saved_recipes_with_details",
+        description:
+          "Fetch the user's saved recipes and join each saved recipe with the matching generated recipe details, including title and cuisine. " +
+          "Use this when the user asks what dishes or recipes they have saved.",
+        parameters: {
+          type: "object",
+          properties: {
+            limit: {
+              type: "integer",
+              description: "Max saved recipes to return. Default 10, max 20.",
+            },
+          },
+        },
+      },
+      {
+        name: "get_recipe_by_ids",
+        description:
+          "Fetch generated recipe documents by recipe IDs for this user. " +
+          "Use this after you already have recipe_id values and need the actual recipe titles, cuisines, ingredients, or instructions.",
+        parameters: {
+          type: "object",
+          properties: {
+            recipe_ids: {
+              type: "array",
+              items: { type: "string" },
+              description: "Recipe IDs to fetch from generated_recipes.",
+            },
+          },
+          required: ["recipe_ids"],
+        },
+      },
+      {
+        name: "get_latest_workout_details",
+        description:
+          "Fetch the user's most recent workout session with detailed fields like exercise name, reps, timestamps, duration, and scores. " +
+          "Use this for questions about the user's last or latest workout.",
+        parameters: {
+          type: "object",
+          properties: {},
+        },
+      },
+      {
+        name: "get_profile_facts",
+        description:
+          "Fetch a compact set of profile facts for this user, including name, date of birth, age, height, weight, lifestyle, and nutrition targets. " +
+          "Use this for profile, age, DOB, height, weight, and nutrition goal questions.",
+        parameters: {
+          type: "object",
+          properties: {},
+        },
+      },
+      {
+        name: "join_user_data",
+        description:
+          "Join two user-scoped collections using an approved join pair. " +
+          "Use this for cross-collection questions like saved recipes where IDs from one collection must be resolved in another collection.",
+        parameters: {
+          type: "object",
+          properties: {
+            left_collection: {
+              type: "string",
+              enum: ALLOWED_JOIN_PAIRS.map((pair) => pair.leftCollection),
+              description: "Left-side collection for the join.",
+            },
+            right_collection: {
+              type: "string",
+              enum: ALLOWED_JOIN_PAIRS.map((pair) => pair.rightCollection),
+              description: "Right-side collection for the join.",
+            },
+            left_key: {
+              type: "string",
+              enum: ALLOWED_JOIN_PAIRS.map((pair) => pair.leftKey),
+              description: "Join key on the left-side collection.",
+            },
+            right_key: {
+              type: "string",
+              enum: ALLOWED_JOIN_PAIRS.map((pair) => pair.rightKey),
+              description: "Join key on the right-side collection.",
+            },
+            limit: {
+              type: "integer",
+              description: "Max left-side rows to join. Default 10, max 20.",
+            },
+          },
+          required: ["left_collection", "right_collection", "left_key", "right_key"],
+        },
+      },
     ],
   },
 ];
@@ -556,6 +707,216 @@ async function executeTool(
   args: Record<string, any>,
   userId: string
 ): Promise<any> {
+  const { db } = await getDb();
+
+  if (name === "get_saved_recipes_with_details") {
+    const limit = Math.min(Number(args.limit) || 10, 20);
+    const savedRecipes = await db
+      .collection("saved_recipes")
+      .find({ user_id: userId })
+      .sort({ saved_at: -1, _id: -1 })
+      .limit(limit)
+      .toArray();
+
+    const uniqueRecipeIds = Array.from(
+      new Set(
+        savedRecipes
+          .map((recipe) => recipe.recipe_id)
+          .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      )
+    );
+
+    const recipeQueries = uniqueRecipeIds.flatMap((recipeId) => {
+      const queries: Array<Record<string, any>> = [{ _id: recipeId, user_id: userId }];
+      if (ObjectId.isValid(recipeId)) {
+        queries.push({ _id: new ObjectId(recipeId), user_id: userId });
+      }
+      return queries;
+    });
+
+    const generatedRecipes = recipeQueries.length > 0
+      ? await db.collection("generated_recipes").find({ $or: recipeQueries }).toArray()
+      : [];
+
+    const recipeMap = new Map<string, any>();
+    for (const recipe of generatedRecipes) {
+      const normalized = normalizeCollectionRecord("generated_recipes", recipe);
+      recipeMap.set(String(normalized._id), normalized);
+    }
+
+    const data = savedRecipes.map((savedRecipe) => {
+      const normalizedSaved = normalizeCollectionRecord("saved_recipes", savedRecipe);
+      const recipeId = String(savedRecipe.recipe_id || normalizedSaved.recipeId || "");
+      return {
+        ...normalizedSaved,
+        recipe: recipeMap.get(recipeId) || null,
+      };
+    });
+
+    return {
+      count: data.length,
+      data,
+    };
+  }
+
+  if (name === "get_recipe_by_ids") {
+    const recipeIds = Array.isArray(args.recipe_ids)
+      ? args.recipe_ids
+          .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+          .slice(0, 20)
+      : [];
+
+    if (recipeIds.length === 0) {
+      return { error: "recipe_ids must contain at least one ID." };
+    }
+
+    const recipeQueries = recipeIds.flatMap((recipeId) => {
+      const queries: Array<Record<string, any>> = [{ _id: recipeId, user_id: userId }];
+      if (ObjectId.isValid(recipeId)) {
+        queries.push({ _id: new ObjectId(recipeId), user_id: userId });
+      }
+      return queries;
+    });
+
+    const results = await db
+      .collection("generated_recipes")
+      .find({ $or: recipeQueries })
+      .toArray();
+
+    return {
+      count: results.length,
+      data: results.map((recipe: any) => normalizeCollectionRecord("generated_recipes", recipe)),
+    };
+  }
+
+  if (name === "get_latest_workout_details") {
+    const latestSession = await db
+      .collection("fitness_sessions")
+      .find({ user_id: userId })
+      .sort({ ended_at: -1, started_at: -1, _id: -1 })
+      .limit(1)
+      .next();
+
+    if (!latestSession) {
+      return { count: 0, data: null };
+    }
+
+    return {
+      count: 1,
+      data: normalizeCollectionRecord("fitness_sessions", latestSession),
+    };
+  }
+
+  if (name === "get_profile_facts") {
+    let userObjectId: ObjectId | null = null;
+    try {
+      userObjectId = new ObjectId(userId);
+    } catch {
+      userObjectId = null;
+    }
+
+    const [userDoc, userProfile, nutritionProfile] = await Promise.all([
+      userObjectId ? db.collection("users").findOne({ _id: userObjectId }) : null,
+      db.collection("user_profiles").findOne({ user_id: userId }),
+      db.collection("nutrition_profiles").findOne({ user_id: userId }),
+    ]);
+
+    const dateOfBirth = userProfile?.date_of_birth ?? userProfile?.dateOfBirth;
+    return {
+      name: userDoc?.name || null,
+      email: userDoc?.email || null,
+      userId,
+      dateOfBirth: dateOfBirth || null,
+      age: calculateAgeFromCalendarDate(dateOfBirth),
+      height: userProfile?.height ?? null,
+      weight: userProfile?.weight ?? null,
+      lifestyle: userProfile?.lifestyle ?? null,
+      primaryGoal: nutritionProfile?.primary_goal ?? null,
+      proteinGoalGrams: nutritionProfile?.protein_goal_g ?? null,
+      calorieTarget: nutritionProfile?.calorie_goal ?? null,
+      restrictions: nutritionProfile?.restrictions ?? [],
+      dietaryPreferences: nutritionProfile?.dietary_preferences ?? [],
+      dislikedIngredients: nutritionProfile?.disliked_ingredients ?? [],
+    };
+  }
+
+  if (name === "join_user_data") {
+    const leftCollection = String(args.left_collection || "");
+    const rightCollection = String(args.right_collection || "");
+    const leftKey = String(args.left_key || "");
+    const rightKey = String(args.right_key || "");
+    const limit = Math.min(Number(args.limit) || 10, 20);
+
+    const allowedJoin = ALLOWED_JOIN_PAIRS.find(
+      (pair) =>
+        pair.leftCollection === leftCollection &&
+        pair.rightCollection === rightCollection &&
+        pair.leftKey === leftKey &&
+        pair.rightKey === rightKey
+    );
+
+    if (!allowedJoin) {
+      return {
+        error: "That join is not allowed. Use an approved collection/key pair only.",
+        allowedJoins: ALLOWED_JOIN_PAIRS,
+      };
+    }
+
+    const leftRows = await db
+      .collection(leftCollection)
+      .find(getUserScopedFilter(leftCollection, userId))
+      .sort(DEFAULT_SORTS[leftCollection] || { _id: -1 })
+      .limit(limit)
+      .toArray();
+
+    const joinValues = Array.from(
+      new Set(
+        leftRows
+          .flatMap((row) => buildJoinMatchVariants(row[leftKey]))
+          .filter((value) => value !== null && value !== undefined)
+      )
+    );
+
+    const rightRows = joinValues.length > 0
+      ? await db
+          .collection(rightCollection)
+          .find({
+            ...getUserScopedFilter(rightCollection, userId),
+            [rightKey]: { $in: joinValues },
+          })
+          .toArray()
+      : [];
+
+    const rightRowMap = new Map<string, any>();
+    for (const rightRow of rightRows) {
+      const normalizedRight = normalizeCollectionRecord(rightCollection, rightRow);
+      const keyValue = rightRow[rightKey];
+      for (const variant of buildJoinMatchVariants(keyValue)) {
+        rightRowMap.set(String(variant), normalizedRight);
+      }
+    }
+
+    const data = leftRows.map((leftRow) => {
+      const normalizedLeft = normalizeCollectionRecord(leftCollection, leftRow);
+      const variants = buildJoinMatchVariants(leftRow[leftKey]);
+      const joined =
+        variants
+          .map((variant) => rightRowMap.get(String(variant)))
+          .find(Boolean) || null;
+
+      return {
+        left: normalizedLeft,
+        right: joined,
+      };
+    });
+
+    return {
+      join: allowedJoin,
+      count: data.length,
+      data,
+    };
+  }
+
   if (name !== "get_user_data") return { error: "Unknown tool" };
 
   const { collection, limit = 5, sort_field, sort_order = "desc" } = args;
@@ -564,7 +925,6 @@ async function executeTool(
     return { error: `Collection '${collection}' is not accessible.` };
   }
 
-  const { db } = await getDb();
   const userIdField = ALLOWED_COLLECTIONS[collection];
   const sortObj: Record<string, 1 | -1> = sort_field
     ? { [sort_field]: sort_order === "asc" ? 1 : -1 }
@@ -595,7 +955,8 @@ async function executeTool(
 async function callGemini(
   systemInstruction: string,
   contents: any[],
-  withTools: boolean
+  withTools: boolean,
+  toolMode: "AUTO" | "ANY" = "AUTO"
 ): Promise<any> {
   const models = ["gemini-2.5-flash", "gemini-2.0-flash-lite", "gemini-flash-latest"];
 
@@ -604,7 +965,16 @@ async function callGemini(
     contents,
     generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
   };
-  if (withTools) body.tools = TOOLS;
+  if (withTools) {
+    body.tools = TOOLS;
+    if (toolMode === "ANY") {
+      body.toolConfig = {
+        functionCallingConfig: {
+          mode: "ANY",
+        },
+      };
+    }
+  }
 
   for (const model of models) {
     try {
@@ -627,6 +997,8 @@ async function callGemini(
   return null;
 }
 
+const MAX_TOOL_ROUNDS = 8;
+
 // ── POST /api/agent/chat ───────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
@@ -642,21 +1014,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "message required" }, { status: 400 });
     }
 
-    const directAnswer = await answerCommonPersonalDataQuestion(message, userId, messages || []);
-    if (directAnswer) {
-      try {
-        const { db: saveDb } = await getDb();
-        const now = new Date();
-        await saveDb.collection("agent_chats").insertMany([
-          { user_id: userId, role: "user", content: message, timestamp: now },
-          { user_id: userId, role: "assistant", content: directAnswer, timestamp: new Date(now.getTime() + 1) },
-        ]);
-      } catch (saveErr) {
-        console.error("[Agent Chat] Failed to save deterministic messages:", saveErr);
-      }
-
-      return NextResponse.json({ response: directAnswer, deterministic: true });
-    }
+    const shouldForceTooling = looksLikePersonalDataQuestion(message);
 
     // System instruction — top-level, separate from conversation
     const systemInstruction = `You are What Now? Agent — a friendly, accurate wellness AI assistant embedded in the What Now? app.
@@ -668,14 +1026,22 @@ USER ID: ${userId}
 
 CRITICAL RULES:
 1. You have a tool: get_user_data. USE IT whenever the user asks about their own data.
-   - Asked about date of birth, age, height, weight? → call get_user_data("user_profiles")
-   - Asked about workouts or exercise sessions? → call get_user_data("fitness_sessions")
-   - Asked about recipes or food? → call get_user_data("generated_recipes") or "saved_recipes"
+   - Asked about date of birth, age, height, weight, or nutrition targets? → call get_profile_facts()
+   - Asked about the last or latest workout? → call get_latest_workout_details()
+   - Asked what dishes or recipes they saved? → call get_saved_recipes_with_details()
+   - Asked about a specific saved recipe after you have recipe IDs? → call get_recipe_by_ids()
+   - Asked a cross-collection question like saved recipes that need names from another table? → call join_user_data() with an approved join pair.
+   - Asked about workouts or exercise sessions more broadly? → call get_user_data("fitness_sessions")
+   - Asked about recipes or food more broadly? → call get_user_data("generated_recipes") or "saved_recipes"
    - Asked about skin or hair? → call get_user_data("skin_logs") or "hair_logs"
    - Asked about restaurants or favorites? → call get_user_data("favorites")
-   - Asked about nutrition goals? → call get_user_data("nutrition_profiles")
+   - Asked about nutrition goals more broadly? → call get_profile_facts() or get_user_data("nutrition_profiles")
    - When in doubt about any personal data, CALL THE TOOL — never guess.
+   - Prefer the specialized tools above before the generic collection reader.
+   - Allowed join pair right now:
+     saved_recipes.recipe_id → generated_recipes._id
 2. Only state facts you can confirm from the profile context or tool results. Never hallucinate.
+3. For any personal-data question, you must use a tool in this turn before giving the final answer. Do not answer from memory, prior assistant messages, or profile summary alone.
 3. Never treat a previous assistant message as evidence about the user's facts. If the user asks about their own data, ignore old assistant claims and verify again.
 4. For recency questions, prefer the true timestamp fields from tool results such as endedAt, startedAt, created_at, createdAt, saved_at, or timestamp.
 5. If you mention a date, use an absolute date like "April 19, 2026" instead of a relative guess.
@@ -698,46 +1064,108 @@ CRITICAL RULES:
     // ── Agentic loop: up to 4 tool call rounds ─────────────────
     let currentContents = [...contents];
     let finalResponse = "";
+    const seenToolCalls = new Set<string>();
+    let toolCallsMade = 0;
 
-    for (let round = 0; round < 4; round++) {
-      const geminiResp = await callGemini(systemInstruction, currentContents, true);
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+      const geminiResp = await callGemini(
+        systemInstruction,
+        currentContents,
+        true,
+        shouldForceTooling && toolCallsMade === 0 ? "ANY" : "AUTO"
+      );
       if (!geminiResp) break;
 
       const candidate = geminiResp.candidates?.[0];
       const parts = candidate?.content?.parts || [];
 
-      const functionCallPart = parts.find((p: any) => p.functionCall);
-      const textPart = parts.find((p: any) => p.text);
+      const functionCallParts = parts.filter((p: any) => p.functionCall);
+      const textParts = parts.filter((p: any) => typeof p.text === "string" && p.text.trim());
 
-      if (functionCallPart) {
-        const { name, args } = functionCallPart.functionCall;
+      if (functionCallParts.length > 0) {
+        let executedAnyTool = false;
 
-        const toolResult = await executeTool(name, args, userId);
+        for (const functionCallPart of functionCallParts) {
+          const { name, args } = functionCallPart.functionCall;
+          const toolSignature = JSON.stringify({ name, args });
 
-        currentContents = [
-          ...currentContents,
-          { role: "model", parts: [{ functionCall: { name, args } }] },
-          {
-            role: "user",
-            parts: [
+          if (seenToolCalls.has(toolSignature)) {
+            currentContents = [
+              ...currentContents,
+              { role: "model", parts: [{ functionCall: { name, args } }] },
               {
-                functionResponse: {
-                  name,
-                  response: { result: toolResult },
-                },
+                role: "user",
+                parts: [
+                  {
+                    functionResponse: {
+                      name,
+                      response: {
+                        result: {
+                          error: "Duplicate tool call ignored. Use previous results and answer or call a different tool query.",
+                        },
+                      },
+                    },
+                  },
+                ],
               },
-            ],
-          },
-        ];
-        continue;
+            ];
+            continue;
+          }
+
+          seenToolCalls.add(toolSignature);
+          const toolResult = await executeTool(name, args, userId);
+          executedAnyTool = true;
+          toolCallsMade += 1;
+
+          currentContents = [
+            ...currentContents,
+            { role: "model", parts: [{ functionCall: { name, args } }] },
+            {
+              role: "user",
+              parts: [
+                {
+                  functionResponse: {
+                    name,
+                    response: { result: toolResult },
+                  },
+                },
+              ],
+            },
+          ];
+        }
+
+        if (executedAnyTool) {
+          continue;
+        }
       }
 
-      if (textPart) {
-        finalResponse = textPart.text.trim();
+      if (textParts.length > 0) {
+        if (shouldForceTooling && toolCallsMade === 0) {
+          currentContents = [
+            ...currentContents,
+            {
+              role: "user",
+              parts: [
+                {
+                  text: "You must use a tool before answering this personal-data question. Call the correct tool now.",
+                },
+              ],
+            },
+          ];
+          continue;
+        }
+        finalResponse = textParts.map((part: any) => part.text.trim()).filter(Boolean).join("\n").trim();
         break;
       }
 
       break;
+    }
+
+    if (!finalResponse && shouldForceTooling) {
+      const fallbackAnswer = await answerCommonPersonalDataQuestion(message, userId, messages || []);
+      if (fallbackAnswer) {
+        finalResponse = fallbackAnswer;
+      }
     }
 
     if (!finalResponse) {
