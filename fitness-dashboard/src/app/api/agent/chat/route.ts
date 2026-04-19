@@ -70,15 +70,131 @@ const ALLOWED_JOIN_PAIRS = [
   },
 ] as const;
 
+const AGENT_TIME_ZONE = process.env.AGENT_TIME_ZONE || "America/Denver";
+
+type EventTimeframe = "upcoming" | "past" | "today" | "all";
+
 function formatAbsoluteDate(value: unknown): string | null {
   if (!value) return null;
-  const parsed = new Date(String(value));
+  const raw = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return formatCalendarDate(raw) || raw;
+  }
+  const parsed = new Date(raw);
   if (Number.isNaN(parsed.getTime())) return null;
   return parsed.toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
+}
+
+function getDateTimePartMap(value: Date, options: Intl.DateTimeFormatOptions) {
+  return new Intl.DateTimeFormat("en-US", options)
+    .formatToParts(value)
+    .reduce<Record<string, string>>((acc, part) => {
+      if (part.type !== "literal") {
+        acc[part.type] = part.value;
+      }
+      return acc;
+    }, {});
+}
+
+function getCurrentDateTimeContext(now: Date = new Date(), timeZone = AGENT_TIME_ZONE) {
+  const dateParts = getDateTimePartMap(now, {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const timeParts = getDateTimePartMap(now, {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+
+  return {
+    now,
+    isoNow: now.toISOString(),
+    timeZone,
+    dateKey: `${dateParts.year || "0000"}-${dateParts.month || "01"}-${dateParts.day || "01"}`,
+    timeKey: `${timeParts.hour || "00"}:${timeParts.minute || "00"}`,
+    dateText: new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }).format(now),
+    dateTimeText: new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    }).format(now),
+  };
+}
+
+function formatClockTime(value: unknown): string | null {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+
+  const match = raw.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) {
+    return raw;
+  }
+
+  const [, hourText, minuteText] = match;
+  const hour = Number(hourText);
+  if (!Number.isFinite(hour) || hour < 0 || hour > 23) {
+    return raw;
+  }
+
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const twelveHour = hour % 12 || 12;
+  return `${twelveHour}:${minuteText} ${suffix}`;
+}
+
+function formatEventDateTime(dateValue: unknown, timeValue: unknown): string {
+  const dateText = formatAbsoluteDate(dateValue) || String(dateValue || "an unknown date");
+  const timeText = formatClockTime(timeValue);
+  return timeText ? `${dateText} at ${timeText}` : dateText;
+}
+
+function isUpcomingEventRecord(event: Record<string, any>, current = getCurrentDateTimeContext()) {
+  const eventDate = String(event.date || "").trim();
+  if (!eventDate) return false;
+  if (eventDate > current.dateKey) return true;
+  if (eventDate < current.dateKey) return false;
+
+  const eventTime = String(event.time || "").trim();
+  if (!eventTime) return true;
+  return eventTime >= current.timeKey;
+}
+
+function isPastEventRecord(event: Record<string, any>, current = getCurrentDateTimeContext()) {
+  const eventDate = String(event.date || "").trim();
+  if (!eventDate) return false;
+  if (eventDate < current.dateKey) return true;
+  if (eventDate > current.dateKey) return false;
+
+  const eventTime = String(event.time || "").trim();
+  if (!eventTime) return false;
+  return eventTime < current.timeKey;
+}
+
+function isTodayEventRecord(event: Record<string, any>, current = getCurrentDateTimeContext()) {
+  return String(event.date || "").trim() === current.dateKey && isUpcomingEventRecord(event, current);
+}
+
+function formatEventSummary(event: Record<string, any>) {
+  const title = event.title || "Untitled event";
+  const when = formatEventDateTime(event.date, event.time);
+  const location = event.location ? ` in ${event.location}` : "";
+  return `${title} on ${when}${location}`;
 }
 
 function serializeValue(value: any): any {
@@ -177,6 +293,23 @@ function normalizeCollectionRecord(collection: string, record: Record<string, an
     };
   }
 
+  if (collection === "community_events") {
+    return {
+      _id: base._id,
+      userId: base.user_id ?? base.userId,
+      displayName: base.display_name ?? base.displayName,
+      title: base.title,
+      description: base.description,
+      date: base.date,
+      time: base.time,
+      location: base.location,
+      category: base.category,
+      attendees: base.attendees ?? [],
+      attendeeNames: base.attendee_names ?? base.attendeeNames ?? [],
+      createdAt: base.created_at ?? base.createdAt,
+    };
+  }
+
   return base;
 }
 
@@ -234,7 +367,7 @@ function buildJoinMatchVariants(value: unknown): unknown[] {
 }
 
 function looksLikePersonalDataQuestion(message: string) {
-  return /\b(age|birthday|birth date|date of birth|dob|height|weight|work(?:ed)?\s*out|workout|exercise|session|rep|reps|recipe|recipes|dish|dishes|ingredients|instructions|pantry|calorie|calories|protein|restriction|restrictions|restaurant|favorite|favourite|user id|userid|profile id)\b/i.test(message);
+  return /\b(age|birthday|birth date|date of birth|dob|height|weight|work(?:ed)?\s*out|workout|exercise|session|rep|reps|recipe|recipes|dish|dishes|ingredients|instructions|pantry|calorie|calories|protein|restriction|restrictions|restaurant|favorite|favourite|event|events|calendar|rsvp|user id|userid|profile id)\b/i.test(message);
 }
 
 function isAgeQuestion(message: string) {
@@ -275,6 +408,29 @@ function isRecipeDetailsQuestion(message: string) {
 
 function isUserIdQuestion(message: string) {
   return /\bwhat(?:'s| is) my user id\b|\bwhat(?:'s| is) my id\b|\bmy user id\b|\buserid\b/i.test(message);
+}
+
+function isEventQuestion(message: string) {
+  return /\bevents?\b|\bcalendar\b|\brsvp\b/i.test(message);
+}
+
+function isTodayEventsQuestion(message: string) {
+  return /\b(events?|event)\b.*\btoday\b|\btoday\b.*\bevents?\b/i.test(message);
+}
+
+function isPastEventsQuestion(message: string) {
+  return /\b(past|previous|earlier|already happened|history|attended|before)\b.*\bevents?\b|\bwhat events have i (?:had|attended)\b/i.test(message);
+}
+
+function isUpcomingEventsQuestion(message: string) {
+  return /\b(upcoming|coming up|future|next)\b.*\bevents?\b|\bwhat(?:'s| is) my next event\b|\bdo i have any events(?: coming up)?\b|\bare there any events coming up\b/i.test(message);
+}
+
+function getEventsTimeframe(message: string): EventTimeframe {
+  if (isTodayEventsQuestion(message)) return "today";
+  if (isPastEventsQuestion(message)) return "past";
+  if (isUpcomingEventsQuestion(message) || isEventQuestion(message)) return "upcoming";
+  return "all";
 }
 
 function extractDateFromMessage(message: string): Date | null {
@@ -376,6 +532,49 @@ async function getLatestSavedRecipeDetails(db: Awaited<ReturnType<typeof getData
   });
 
   return { savedRecipe, recipe };
+}
+
+async function getUserEvents(
+  db: Awaited<ReturnType<typeof getDatabase>>,
+  userId: string,
+  options: { timeframe: EventTimeframe; limit?: number }
+) {
+  const current = getCurrentDateTimeContext();
+  const limit = Math.min(Math.max(Number(options.limit) || 10, 1), 20);
+  const fetchLimit = Math.min(Math.max(limit * 4, 20), 80);
+  const filter: Record<string, any> = { attendees: userId };
+
+  if (options.timeframe === "upcoming" || options.timeframe === "today") {
+    filter.date = { $gte: current.dateKey };
+  } else if (options.timeframe === "past") {
+    filter.date = { $lte: current.dateKey };
+  }
+
+  const sort =
+    options.timeframe === "past"
+      ? ({ date: -1, time: -1, _id: -1 } as const)
+      : ({ date: 1, time: 1, _id: 1 } as const);
+
+  const rawEvents = await db
+    .collection("community_events")
+    .find(filter)
+    .sort(sort)
+    .limit(fetchLimit)
+    .toArray();
+
+  let filtered = rawEvents;
+  if (options.timeframe === "upcoming") {
+    filtered = rawEvents.filter((event) => isUpcomingEventRecord(event, current));
+  } else if (options.timeframe === "past") {
+    filtered = rawEvents.filter((event) => isPastEventRecord(event, current));
+  } else if (options.timeframe === "today") {
+    filtered = rawEvents.filter((event) => isTodayEventRecord(event, current));
+  }
+
+  return {
+    current,
+    events: filtered.slice(0, limit),
+  };
 }
 
 async function answerCommonPersonalDataQuestion(
@@ -514,6 +713,35 @@ async function answerCommonPersonalDataQuestion(
     }
 
     return `Your saved favorite restaurants are ${names.join(", ")}.`;
+  }
+
+  if (isEventQuestion(message)) {
+    const timeframe = getEventsTimeframe(message);
+    const { current, events } = await getUserEvents(db, userId, {
+      timeframe,
+      limit: timeframe === "past" ? 5 : 10,
+    });
+
+    if (events.length === 0) {
+      if (timeframe === "today") {
+        return `As of ${current.dateTimeText}, I don't see any remaining events for you today.`;
+      }
+      if (timeframe === "past") {
+        return `As of ${current.dateTimeText}, I don't see any past events in your community activity.`;
+      }
+      return `As of ${current.dateTimeText}, I don't see any upcoming events you are attending.`;
+    }
+
+    const summaries = events.map(formatEventSummary);
+    if (timeframe === "past") {
+      return `Your most recent past event${summaries.length === 1 ? "" : "s"} ${summaries.length === 1 ? "was" : "were"} ${summaries.join("; ")}.`;
+    }
+
+    if (timeframe === "today") {
+      return `As of ${current.dateTimeText}, your remaining event${summaries.length === 1 ? "" : "s"} for today ${summaries.length === 1 ? "is" : "are"} ${summaries.join("; ")}.`;
+    }
+
+    return `As of ${current.dateTimeText}, your upcoming event${summaries.length === 1 ? "" : "s"} ${summaries.length === 1 ? "is" : "are"} ${summaries.join("; ")}.`;
   }
 
   if (isLatestSavedRecipeQuestion(message) || isRecipeDetailsQuestion(message)) {
@@ -659,6 +887,27 @@ const TOOLS = [
         parameters: {
           type: "object",
           properties: {},
+        },
+      },
+      {
+        name: "get_user_events",
+        description:
+          "Fetch the user's community events using the current local date and time. " +
+          "Use this for questions about upcoming events, today's events, next events, or past event history. " +
+          "For upcoming and today, exclude events that have already passed.",
+        parameters: {
+          type: "object",
+          properties: {
+            timeframe: {
+              type: "string",
+              enum: ["upcoming", "past", "today", "all"],
+              description: "Which event window to fetch. Default upcoming.",
+            },
+            limit: {
+              type: "integer",
+              description: "Max events to return. Default 10, max 20.",
+            },
+          },
         },
       },
       {
@@ -840,6 +1089,27 @@ async function executeTool(
     };
   }
 
+  if (name === "get_user_events") {
+    const timeframe =
+      args.timeframe === "past" || args.timeframe === "today" || args.timeframe === "all"
+        ? args.timeframe
+        : "upcoming";
+    const { current, events } = await getUserEvents(db, userId, {
+      timeframe,
+      limit: args.limit,
+    });
+
+    return {
+      timeframe,
+      currentDateTime: current.dateTimeText,
+      currentDateKey: current.dateKey,
+      currentTimeKey: current.timeKey,
+      timeZone: current.timeZone,
+      count: events.length,
+      data: events.map((event: any) => normalizeCollectionRecord("community_events", event)),
+    };
+  }
+
   if (name === "join_user_data") {
     const leftCollection = String(args.left_collection || "");
     const rightCollection = String(args.right_collection || "");
@@ -1015,6 +1285,7 @@ export async function POST(req: NextRequest) {
     }
 
     const shouldForceTooling = looksLikePersonalDataQuestion(message);
+    const currentDateTime = getCurrentDateTimeContext();
 
     // System instruction — top-level, separate from conversation
     const systemInstruction = `You are What Now? Agent — a friendly, accurate wellness AI assistant embedded in the What Now? app.
@@ -1023,11 +1294,16 @@ USER PROFILE CONTEXT (from their real data):
 ${profileContext || "No profile built yet."}
 
 USER ID: ${userId}
+CURRENT LOCAL DATE/TIME: ${currentDateTime.dateTimeText}
+CURRENT LOCAL DATE KEY: ${currentDateTime.dateKey}
+CURRENT LOCAL TIME KEY: ${currentDateTime.timeKey}
+TIME ZONE: ${currentDateTime.timeZone}
 
 CRITICAL RULES:
 1. You have a tool: get_user_data. USE IT whenever the user asks about their own data.
    - Asked about date of birth, age, height, weight, or nutrition targets? → call get_profile_facts()
    - Asked about the last or latest workout? → call get_latest_workout_details()
+   - Asked about upcoming, next, today, calendar, or past events? → call get_user_events()
    - Asked what dishes or recipes they saved? → call get_saved_recipes_with_details()
    - Asked about a specific saved recipe after you have recipe IDs? → call get_recipe_by_ids()
    - Asked a cross-collection question like saved recipes that need names from another table? → call join_user_data() with an approved join pair.
@@ -1044,15 +1320,20 @@ CRITICAL RULES:
 3. For any personal-data question, you must use a tool in this turn before giving the final answer. Do not answer from memory, prior assistant messages, or profile summary alone.
 3. Never treat a previous assistant message as evidence about the user's facts. If the user asks about their own data, ignore old assistant claims and verify again.
 4. For recency questions, prefer the true timestamp fields from tool results such as endedAt, startedAt, created_at, createdAt, saved_at, or timestamp.
+5. For event questions, use the current local date/time above as the source of truth. community_events use local date and time fields; upcoming means the event has not started yet, so exclude past events unless the user explicitly asks for history.
 5. If you mention a date, use an absolute date like "April 19, 2026" instead of a relative guess.
 6. If the tool returns no confirmed data, say that clearly instead of making up an answer.
 7. Do not make medical diagnoses or prescribe treatments.
 8. Keep responses warm, concise (3-5 sentences), and specific to this user's real data.`;
 
     // Build conversation (only real messages, no system prompt in contents)
+    const historyWindow = shouldForceTooling ? 4 : 9;
     const history = (messages || [])
-      .slice(-9)
-      .filter((msg: { role: string; content: string }) => !looksLikePersonalDataQuestion(message) || msg.role === "user");
+      .filter(
+        (msg: { role: string; content: string }) =>
+          (msg.role === "user" || msg.role === "assistant") && typeof msg.content === "string" && msg.content.trim().length > 0
+      )
+      .slice(-historyWindow);
     const contents: any[] = [
       ...history.map((msg: { role: string; content: string }) => ({
         role: msg.role === "user" ? "user" : "model",
