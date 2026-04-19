@@ -165,6 +165,7 @@ export function NutritionWellnessPage({ userId: initialUserId, userName }: Nutri
   const [authCuisine, setAuthCuisine] = useState("");
   const [authPreferences, setAuthPreferences] = useState("more protein, keep authentic");
   const [authResult, setAuthResult] = useState<AuthenticOptimizationResult | null>(null);
+  const [authClarification, setAuthClarification] = useState<string | null>(null);
 
   const [libraryEntries, setLibraryEntries] = useState<RecipeLibraryEntry[]>([]);
   const [librarySeeded, setLibrarySeeded] = useState(false);
@@ -380,6 +381,7 @@ export function NutritionWellnessPage({ userId: initialUserId, userName }: Nutri
 
   const optimizeAuthenticHandler = useCallback(async () => {
     setOptimizingAuthState(true);
+    setAuthClarification(null);
     try {
       const result = await optimizeAuthenticDish({
         user_id: userId,
@@ -388,12 +390,19 @@ export function NutritionWellnessPage({ userId: initialUserId, userName }: Nutri
         optimization_preferences: csvToArray(authPreferences),
       });
 
-      setAuthResult(result.optimization);
-      showStatus(
-        result.generated_with_gemini
-          ? `Authentic optimization generated with ${result.model || "Gemini"}.`
-          : "Authentic optimization generated using fallback logic.",
-      );
+      if (result.needs_clarification || !result.optimization) {
+        setAuthResult(null);
+        setAuthClarification(result.clarification_message || "Dish not recognized. Please clarify the dish name.");
+        showStatus(result.clarification_message || "Dish not recognized. Please clarify the dish name.", "error");
+      } else {
+        setAuthResult(result.optimization);
+        setAuthClarification(null);
+        showStatus(
+          result.generated_with_gemini
+            ? `Authentic optimization generated with ${result.model || "Gemini"}.`
+            : "Authentic optimization generated using fallback logic.",
+        );
+      }
     } catch (error) {
       console.error(error);
       showStatus((error as Error).message, "error");
@@ -814,6 +823,10 @@ export function NutritionWellnessPage({ userId: initialUserId, userName }: Nutri
               onChange={setAuthPreferences}
             />
           </div>
+
+          {authClarification ? (
+            <p className="mt-4 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-base text-red-200">{authClarification}</p>
+          ) : null}
 
           {authResult ? (
             <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
