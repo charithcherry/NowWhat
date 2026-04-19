@@ -29,6 +29,22 @@ async function geminiCall(prompt: string): Promise<string> {
   return "";
 }
 
+function isUsableProfileContext(value: string | null | undefined): value is string {
+  if (!value) return false;
+
+  const trimmed = value.trim();
+  if (trimmed.length < 120) return false;
+  if (!/[.!?]["']?$/.test(trimmed)) return false;
+
+  const sentenceCount = trimmed
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+    .length;
+
+  return sentenceCount >= 2;
+}
+
 function buildFallbackProfileContext(params: {
   userDoc: any;
   userProfile: any;
@@ -283,9 +299,10 @@ STRICT RULES — follow these exactly:
 
 Now write a 4-6 sentence profile context in second person ("You are someone who..."). Be specific — mention their actual name, goals, cuisine preferences, skin concerns using only the real data above. Be warm and personal. Write in flowing prose, no bullet points.`;
 
-    const profileContext =
-      (await geminiCall(prompt)) ||
-      buildFallbackProfileContext({
+    const generatedProfileContext = await geminiCall(prompt);
+    const profileContext = isUsableProfileContext(generatedProfileContext)
+      ? generatedProfileContext
+      : buildFallbackProfileContext({
         userDoc,
         userProfile,
         nutritionProfile,

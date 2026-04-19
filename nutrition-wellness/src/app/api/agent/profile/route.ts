@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { MongoClient, ObjectId } from "mongodb";
+import { ObjectId } from "mongodb";
 import { getCurrentUser } from "@/lib/auth";
-
-async function getDb() {
-  const client = new MongoClient(process.env.MONGODB_URI!, {
-    serverSelectionTimeoutMS: 5000,
-  });
-  await client.connect();
-  return { client, db: client.db(process.env.MONGODB_DB || "wellbeing_app") };
-}
+import { calculateAgeFromCalendarDate, formatCalendarDate } from "@/lib/calendarDate";
+import { getDatabase } from "@/lib/mongodb";
 
 async function geminiCall(prompt: string): Promise<string> {
   const models = ["gemini-2.5-flash", "gemini-2.0-flash-lite", "gemini-flash-latest"];
@@ -35,19 +29,103 @@ async function geminiCall(prompt: string): Promise<string> {
   return "";
 }
 
+function isUsableProfileContext(value: string | null | undefined): value is string {
+  if (!value) return false;
+
+  const trimmed = value.trim();
+  if (trimmed.length < 120) return false;
+  if (!/[.!?]["']?$/.test(trimmed)) return false;
+
+  const sentenceCount = trimmed
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+    .length;
+
+  return sentenceCount >= 2;
+}
+
+function buildFallbackProfileContext(params: {
+  userDoc: any;
+  userProfile: any;
+  nutritionProfile: any;
+  pantryItems: any[];
+  favorites: any[];
+  skinHairProfile: any;
+  lovedProducts: any[];
+  latestFitnessSession: any;
+  age: number | null;
+}) {
+  const sentences: string[] = [];
+  const name = params.userDoc?.name || "This user";
+  const goal = params.nutritionProfile?.primary_goal?.replace(/_/g, " ");
+  const dob = params.userProfile?.dateOfBirth;
+  const favoriteRestaurant = params.favorites[0]?.restaurantName || params.favorites[0]?.restaurant_name;
+  const pantryPreview = params.pantryItems.slice(0, 3).map((item: any) => item.item_name).filter(Boolean);
+  const latestWorkoutDate = params.latestFitnessSession?.ended_at
+    ? new Date(params.latestFitnessSession.ended_at).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : null;
+
+  if (params.age !== null && dob) {
+    const dobText = formatCalendarDate(dob) || dob;
+    sentences.push(`${name} is ${params.age} years old, with a saved date of birth of ${dobText}.`);
+  }
+
+  if (goal) {
+    const protein = params.nutritionProfile?.protein_goal_g ? `${params.nutritionProfile.protein_goal_g}g protein` : null;
+    const calories = params.nutritionProfile?.calorie_goal ? `${params.nutritionProfile.calorie_goal} kcal` : null;
+    const targets = [protein, calories].filter(Boolean).join(" and ");
+    sentences.push(
+      targets
+        ? `Your current nutrition goal is ${goal}, with targets of ${targets}.`
+        : `Your current nutrition goal is ${goal}.`
+    );
+  }
+
+  if (latestWorkoutDate && params.latestFitnessSession?.exercise_name) {
+    sentences.push(
+      `Your most recent recorded workout was ${params.latestFitnessSession.exercise_name} on ${latestWorkoutDate}, with ${params.latestFitnessSession.reps_completed ?? "an unknown number of"} reps.`
+    );
+  }
+
+  if (pantryPreview.length > 0) {
+    sentences.push(`You currently have pantry items like ${pantryPreview.join(", ")} available.`);
+  }
+
+  if (favoriteRestaurant) {
+    sentences.push(`You have restaurant activity saved, including ${favoriteRestaurant}.`);
+  }
+
+  if (params.skinHairProfile?.concerns?.length) {
+    sentences.push(`Your saved skin concerns include ${params.skinHairProfile.concerns.join(", ")}.`);
+  } else if (params.lovedProducts.length > 0) {
+    const topProduct = params.lovedProducts[0];
+    if (topProduct?.product_name) {
+      sentences.push(`One product you like is ${topProduct.product_name}${topProduct.brand ? ` by ${topProduct.brand}` : ""}.`);
+    }
+  }
+
+  if (sentences.length === 0) {
+    return `You are ${name}, a What Now? user tracking health and wellness information across the app.`;
+  }
+
+  return sentences.slice(0, 5).join(" ");
+}
+
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const userId = user.userId;
 
-  const { client, db } = await getDb();
+  const userId = user.userId;
+  const db = await getDatabase();
 
   try {
-    // Always rebuild fresh on every call — no cache check
-    console.log(`🔄 [Agent Profile] Rebuilding profile for userId: ${userId}`);
-
     let objId: ObjectId | null = null;
     try { objId = new ObjectId(userId); } catch { /* not a valid ObjectId */ }
 
@@ -58,6 +136,7 @@ export async function GET(req: NextRequest) {
       userDoc,
       userProfile,
       nutritionProfile,
+      latestFitnessSession,
       skinHairProfile,
       lovedProducts,
       generatedRecipes,
@@ -78,6 +157,7 @@ export async function GET(req: NextRequest) {
       objId ? db.collection("users").findOne({ _id: objId }) : null,
       db.collection("user_profiles").findOne({ user_id: userId }),
       db.collection("nutrition_profiles").findOne({ user_id: userId }),
+      db.collection("fitness_sessions").find({ user_id: userId }).sort({ ended_at: -1 }).limit(1).next(),
       db.collection("skin_hair_profiles").findOne({ user_id: userId }),
       db.collection("loved_products").find({ user_id: userId }).toArray(),
       // Recent activity — past 2 days
@@ -116,43 +196,10 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // ── Console log all fetched data ──────────────────────────
-    console.log("\n🤖 [Agent Profile] ── Past 2 Days Data ──────────────────");
-    console.log(`👤 User:           ${userDoc ? `${userDoc.name} (${userDoc.email})` : "not found"}`);
-    console.log(`📋 Physical:       ${userProfile ? `${userProfile.height}cm, ${userProfile.weight}kg, ${userProfile.lifestyle}, DOB: ${userProfile.dateOfBirth}` : "not found"}`);
-    console.log(`🎯 Nutrition:      ${nutritionProfile ? `goal=${nutritionProfile.primary_goal}, protein=${nutritionProfile.protein_goal_g}g, kcal=${nutritionProfile.calorie_goal}, restrictions=${nutritionProfile.restrictions?.join(", ")||"none"}` : "not found"}`);
-    console.log(`🥘 Pantry (${pantryItems.length}):      ${pantryItems.map((p:any) => p.item_name).join(", ") || "empty"}`);
-    console.log(`🍳 Recipes (${generatedRecipes.length}):`);
-    generatedRecipes.forEach((r:any) => console.log(`   - ${r.title} [${r.tags?.join(", ")}]`));
-    console.log(`🧴 Skin:           ${skinHairProfile ? `type=${skinHairProfile.skin_type}, scalp=${skinHairProfile.scalp_type}, concerns=${skinHairProfile.concerns?.join(", ")}` : "not found"}`);
-    console.log(`💄 Loved Products (${lovedProducts.length}): ${lovedProducts.map((p:any) => `${p.product_name} (${p.brand})`).join(", ") || "none"}`);
-    console.log(`❤️  Favorites (${favorites.length}):   ${favorites.map((f:any) => `${f.restaurantName}`).join(", ") || "none"}`);
-    console.log(`🔍 Searches (${clickHistory.length}):   ${[...new Set(clickHistory.filter((c:any) => c.action==="search" && c.metadata?.category !== "__liked").map((c:any) => c.metadata?.category))].join(", ") || "none"}`);
-    console.log(`🧠 Nutrition Insights (${nutritionInsights.length}): ${nutritionInsights.map((n:any) => n.insight_text || n.insight).join(" | ") || "none"}`);
-    console.log(`🍽️  Yelp Insights (${yelpInsights.length}): ${yelpInsights.map((y:any) => y.insight).join(" | ") || "none"}`);
-    console.log(`👥 Community Posts (${communityPosts.length}): ${communityPosts.map((p:any) => p.title).join(", ") || "none"}`);
-    console.log(`💬 Community Comments (${communityComments.length})`);
-    console.log(`😊 Community Moods (${communityMoods.length}): ${communityMoods.map((m:any) => `${m.rating}/5`).join(", ") || "none"}`);
-    console.log(`📅 Upcoming Events (${communityEvents.length}): ${communityEvents.map((e:any) => e.title).join(", ") || "none"}`);
-    console.log(`🤝 Connections (${communityConnections.length})`);
-    console.log("──────────────────────────────────────────────────────────\n");
-
     // ── Build prompt sections ─────────────────────────────────
 
     // ── Age calculation ───────────────────────────────────────
-    function calculateAge(dob: string): number | null {
-      if (!dob) return null;
-      const birth = new Date(dob);
-      if (isNaN(birth.getTime())) return null;
-      const today = new Date();
-      let age = today.getFullYear() - birth.getFullYear();
-      const notYetHadBirthday =
-        today.getMonth() < birth.getMonth() ||
-        (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate());
-      if (notYetHadBirthday) age--;
-      return age;
-    }
-    const age = calculateAge(userProfile?.dateOfBirth);
+    const age = calculateAgeFromCalendarDate(userProfile?.dateOfBirth);
 
     const favCuisines = favorites.length > 0
       ? [...new Set(favorites.flatMap((f: any) => f.categories?.map((c: any) => c.title) || []))]
@@ -174,9 +221,9 @@ export async function GET(req: NextRequest) {
     const recipeTags = [...new Set(generatedRecipes.flatMap((r: any) => r.tags || []))];
     const latestYelpInsight = yelpInsights[0]?.insight || null;
 
-    const prompt = `You are building a personalized user profile context for a wellness AI assistant chatbot called WellBeing Agent.
+    const prompt = `You are building a personalized user profile context for a wellness AI assistant chatbot called What Now? Agent.
 
-Below is REAL data collected from this user's activity in the past 2 days across the WellBeing app. Synthesize it into a clear, warm, specific profile (4-6 sentences) written in second person. This will be injected into every chat session.
+Below is REAL data collected from this user's activity in the past 2 days across the What Now? app. Synthesize it into a clear, warm, specific profile (4-6 sentences) written in second person. This will be injected into every chat session.
 
 ---
 
@@ -236,6 +283,11 @@ Dining Behaviour Insight: ${latestYelpInsight || "none yet"}
 Top Dining Categories (from search+favourites): ${yelpInsights[0]?.topCategories?.join(", ") || favCuisines.join(", ") || "unknown"}
 Search Locations: ${yelpInsights[0]?.searchLocations?.join(", ") || searchedLocations.join(", ") || "unknown"}
 
+## MOST RECENT FITNESS SESSION
+- Exercise: ${latestFitnessSession?.exercise_name || "unknown"}
+- Reps Completed: ${latestFitnessSession?.reps_completed ?? "unknown"}
+- Ended At: ${latestFitnessSession?.ended_at ? new Date(latestFitnessSession.ended_at).toISOString() : "unknown"}
+
 ---
 
 STRICT RULES — follow these exactly:
@@ -247,17 +299,20 @@ STRICT RULES — follow these exactly:
 
 Now write a 4-6 sentence profile context in second person ("You are someone who..."). Be specific — mention their actual name, goals, cuisine preferences, skin concerns using only the real data above. Be warm and personal. Write in flowing prose, no bullet points.`;
 
-    console.log("📝 [Agent Profile] ── Sending Prompt to Gemini ──────────");
-    console.log(prompt);
-    console.log("──────────────────────────────────────────────────────────\n");
-
-    const profileContext =
-      (await geminiCall(prompt)) ||
-      `You are ${userDoc?.name || "a WellBeing user"}, someone dedicated to health and wellness who tracks fitness, nutrition, and skincare.`;
-
-    console.log("✅ [Agent Profile] ── Generated Profile Context ──────────");
-    console.log(profileContext);
-    console.log("──────────────────────────────────────────────────────────\n");
+    const generatedProfileContext = await geminiCall(prompt);
+    const profileContext = isUsableProfileContext(generatedProfileContext)
+      ? generatedProfileContext
+      : buildFallbackProfileContext({
+        userDoc,
+        userProfile,
+        nutritionProfile,
+        pantryItems,
+        favorites,
+        skinHairProfile,
+        lovedProducts,
+        latestFitnessSession,
+        age,
+      });
 
     // ── Save to MongoDB cache (upsert, 24hr TTL) ──────────────
     const now = new Date();
@@ -274,10 +329,10 @@ Now write a 4-6 sentence profile context in second person ("You are someone who.
       },
       { upsert: true }
     );
-    console.log(`💾 [Agent Profile] Saved to MongoDB cache (expires: ${expiresAt.toISOString()})`);
 
     return NextResponse.json({ profileContext, fromCache: false });
-  } finally {
-    await client.close();
+  } catch (error) {
+    console.error("Agent profile error:", error);
+    return NextResponse.json({ error: "Failed to build profile context" }, { status: 500 });
   }
 }
