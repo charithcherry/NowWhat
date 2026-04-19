@@ -74,7 +74,7 @@ export function AgentChat({ userId = "" }: { userId?: string }) {
           throw new Error("Failed to build profile");
         }
         const data = await res.json();
-        const ctx = data.profileContext || "A health-conscious WellBeing app user.";
+        const ctx = data.profileContext || "A health-conscious What Now? app user.";
         setProfileContext(ctx);
         // Save to localStorage as a fast local cache for this origin
         localStorage.setItem(`wb_agent_profile_${uid}`, JSON.stringify({
@@ -90,7 +90,7 @@ export function AgentChat({ userId = "" }: { userId?: string }) {
             if (context) { setProfileContext(context); return; }
           }
         } catch { /* ignore */ }
-        setProfileContext("A WellBeing app user focused on health and wellness.");
+        setProfileContext("A What Now? app user focused on health and wellness.");
       } finally {
         setProfileLoading(false);
       }
@@ -211,7 +211,7 @@ export function AgentChat({ userId = "" }: { userId?: string }) {
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-doom-primary" />
               <span className="text-sm font-bold text-doom-text">
-                WellBeing Agent
+                What Now? Agent
               </span>
               {profileLoading && (
                 <Loader2 className="w-3 h-3 animate-spin text-doom-primary" />
@@ -296,7 +296,7 @@ export function AgentChat({ userId = "" }: { userId?: string }) {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onClick={handleStickerClick}
-        title="WellBeing Agent"
+        title="What Now? Agent"
       >
         <Bot className="w-6 h-6" />
         {!isOpen && <span className="agent-pulse" />}

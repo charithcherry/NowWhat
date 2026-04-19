@@ -80,6 +80,17 @@ function addLog(id: string, msg: string) {
   if (j) { j.log.push(msg); console.log(`[Job ${id}]`, msg); }
 }
 
+function summarizeFailureContext(failureContext: string): string {
+  const trimmed = failureContext.trim();
+  if (!trimmed) {
+    return 'Analyzer validation failed.';
+  }
+
+  return trimmed.length > 220
+    ? `${trimmed.slice(0, 217)}...`
+    : trimmed;
+}
+
 /** Extract min/max of every angle field across all sim frames. */
 function getSimAngleStats(frames: any[]): Record<string, { min: number; max: number }> {
   const stats: Record<string, { min: number; max: number }> = {};
@@ -277,14 +288,22 @@ export async function runJobPipeline(jobId: string): Promise<void> {
 
     // Done — pass or max retries hit
     const finalPassed = testResult!.passed;
-    addLog(jobId, finalPassed
-      ? `Pipeline complete in ${attempts} attempt(s)`
-      : `Max retries hit — using best available code`
-    );
+    if (!finalPassed) {
+      const failureSummary = summarizeFailureContext(testResult!.failureContext);
+      addLog(jobId, `Max retries hit — generation failed validation: ${failureSummary}`);
+      patch(jobId, {
+        status: 'failed',
+        statusDetail: 'Generation failed validation',
+        error: failureSummary,
+      });
+      return;
+    }
+
+    addLog(jobId, `Pipeline complete in ${attempts} attempt(s)`);
 
     patch(jobId, {
       status: 'done',
-      statusDetail: finalPassed ? 'Ready' : 'Ready (partial)',
+      statusDetail: 'Ready',
       result: { spec, cameraSetup, cameraInstructions, testerResult: testResult!, attempts },
     });
 
