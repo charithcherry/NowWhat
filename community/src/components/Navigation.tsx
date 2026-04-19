@@ -58,7 +58,13 @@ export function Navigation({ user }: NavigationProps) {
           <div className="flex items-center justify-between h-16">
             <Link href="/" className="flex items-center space-x-2">
               <img src={publicAsset("/assets/logo.jpg")} alt="What Now?" className="h-9 w-auto mix-blend-screen" />
-              <span className="font-heading text-xl font-bold text-doom-text hidden sm:block tracking-tight">
+              <span
+                className="text-xl font-bold text-doom-text hidden sm:block"
+                style={{
+                  fontFamily:
+                    "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif",
+                }}
+              >
                 What Now?
               </span>
             </Link>
