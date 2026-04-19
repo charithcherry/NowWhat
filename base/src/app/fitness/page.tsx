@@ -210,6 +210,7 @@ export default function FitnessPage() {
   const voiceManagerRef = useRef<VoiceFeedbackManager | null>(null);
   const lastRepCountRef = useRef(0);
   const lastFormWarningRef = useRef(0);
+  const lastWarningByKeyRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     if (typeof window !== 'undefined' && !voiceManagerRef.current) {
@@ -243,24 +244,83 @@ export default function FitnessPage() {
     voiceManagerRef.current.queueMessage(text, normalizeVoicePriority(priority));
   };
 
+  const speakWithCooldown = (
+    text: string,
+    priority: VoicePriority | string = 'high',
+    cooldownMs = 10000,
+    key?: string
+  ) => {
+    if (!text?.trim()) {
+      return false;
+    }
+
+    const now = Date.now();
+    const cooldownKey = key || text.trim().toLowerCase();
+    const lastAt = lastWarningByKeyRef.current[cooldownKey] || 0;
+
+    if (now - lastAt < cooldownMs) {
+      return false;
+    }
+
+    lastWarningByKeyRef.current[cooldownKey] = now;
+    lastFormWarningRef.current = now;
+    speak(text, priority);
+    return true;
+  };
+
   const isSpeakingRef = useRef(false);
+  const lastTtsEndRef = useRef(0);
+
+  const resumeListeningIfNeeded = (delayMs = 150) => {
+    if (typeof window === 'undefined') return;
+    if (!listeningDesiredRef.current || !sessionStartedRef.current || isExerciseActiveRef.current) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      if (
+        listeningDesiredRef.current &&
+        sessionStartedRef.current &&
+        !recognitionRef.current &&
+        !isSpeakingRef.current &&
+        !isExerciseActiveRef.current
+      ) {
+        startListening();
+      }
+    }, delayMs);
+  };
 
   const speakMaster = (text: string) => {
     if (typeof window === 'undefined' || !text?.trim() || !voiceEnabled) return;
 
     // Stop mic immediately before speaking
     isSpeakingRef.current = true;
-    if (recognitionRef.current) { try { recognitionRef.current.stop(); } catch {} }
+    const activeRecognition = recognitionRef.current;
+    recognitionRef.current = null;
+    if (activeRecognition) { try { activeRecognition.stop(); } catch {} }
+    setIsListening(false);
     voiceManagerRef.current?.stopAndClear();
 
+    let finished = false;
+    let watchdogId: number | null = null;
+
     const finish = () => {
-      // Wait 600ms after speech fully ends before re-enabling mic
-      // This prevents the mic from capturing the tail end of TTS audio
+      if (finished) return;
+      finished = true;
+      if (watchdogId !== null) {
+        window.clearTimeout(watchdogId);
+      }
+      lastTtsEndRef.current = Date.now();
       setTimeout(() => {
         isSpeakingRef.current = false;
-        if (recognitionRef.current) { try { recognitionRef.current.start(); } catch {} }
-      }, 600);
+        resumeListeningIfNeeded(300);
+      }, 900);
     };
+
+    watchdogId = window.setTimeout(() => {
+      console.warn('[FitnessCoach] TTS watchdog resumed mic for coach speech');
+      finish();
+    }, 7000);
 
     const provider = voiceManagerRef.current?.getProvider();
 
@@ -333,11 +393,30 @@ export default function FitnessPage() {
   const isSendingRef = useRef(false);
   const lastTranscriptRef = useRef('');
   const lastTranscriptAtRef = useRef(0);
+  const listeningDesiredRef = useRef(false);
+  const generationPendingRef = useRef(false);
+  const masterTurnQueueRef = useRef(Promise.resolve());
 
   // Auto-scroll chat to bottom
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Mic watchdog — recovers when Chrome SpeechRecognition stops firing onend
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (
+        listeningDesiredRef.current &&
+        sessionStartedRef.current &&
+        !recognitionRef.current &&
+        !isSpeakingRef.current &&
+        !isExerciseActiveRef.current
+      ) {
+        startListening();
+      }
+    }, 2500);
+    return () => clearInterval(id);
+  }, []);
 
   // ── Job polling ───────────────────────────────────────────────────────────
   const stopJobPolling = () => {
@@ -401,76 +480,84 @@ export default function FitnessPage() {
     isSystemMsg = false
   ) => {
     if (!userMessage.trim() && !frameSnapshot) return;
-    // Prevent concurrent non-snapshot calls
-    if (!frameSnapshot && isSendingRef.current) return;
-    if (!frameSnapshot) isSendingRef.current = true;
+    const runTurn = async () => {
+      if (!frameSnapshot) isSendingRef.current = true;
 
-    // Add user message to chat log + history
-    if (userMessage && !isSystemMsg) {
-      setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
-      conversationHistoryRef.current = [
-        ...conversationHistoryRef.current,
-        { role: 'user', text: userMessage },
-      ];
-    }
-
-    try {
-      const res = await fetch('/api/video-agents/master', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userMessage: userMessage || '',
-          // Send FULL conversation history every call — this is how chatbots maintain context
-          conversationHistory: conversationHistoryRef.current,
-          currentState: masterStateRef.current,
-          frameSnapshot: frameSnapshot || null,
-          exerciseName: aiExerciseNameRef.current || null,
-          jobStatus: jobStatusRef.current,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) { console.error('[Master] error:', data.error); return; }
-
-      if (data.response) {
-        speakMaster(data.response);
-        // Show in chat (not for frame snapshots — those are silent coaching cues)
-        if (!frameSnapshot) {
-          setMessages(prev => [...prev, { role: 'coach', text: data.response }]);
-        }
-        // Always add to history so context is maintained
+      // Add user message to chat log + history
+      if (userMessage && !isSystemMsg) {
+        setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
         conversationHistoryRef.current = [
           ...conversationHistoryRef.current,
-          { role: 'assistant', text: data.response },
+          { role: 'user', text: userMessage },
         ];
       }
 
-      masterStateRef.current = data.nextState;
-      setMasterState(data.nextState);
+      try {
+        const res = await fetch('/api/video-agents/master', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userMessage: userMessage || '',
+            // Send FULL conversation history every call — this is how chatbots maintain context
+            conversationHistory: conversationHistoryRef.current,
+            currentState: masterStateRef.current,
+            frameSnapshot: frameSnapshot || null,
+            exerciseName: aiExerciseNameRef.current || null,
+            jobStatus: jobStatusRef.current,
+          }),
+        });
 
-      // Start generation — fire once, only if no job is running
-      if (
-        !isSystemMsg &&
-        data.action === 'generate_exercise' &&
-        data.exerciseName &&
-        !currentJobIdRef.current
-      ) {
-        aiExerciseNameRef.current = data.exerciseName;
-        setAiExerciseName(data.exerciseName);
-        startExerciseGeneration(data.exerciseName);
+        const data = await res.json();
+        if (!res.ok) { console.error('[Master] error:', data.error); return; }
+
+        if (data.response) {
+          speakMaster(data.response);
+          // Show in chat (not for frame snapshots — those are silent coaching cues)
+          if (!frameSnapshot) {
+            setMessages(prev => [...prev, { role: 'coach', text: data.response }]);
+          }
+          // Always add to history so context is maintained
+          conversationHistoryRef.current = [
+            ...conversationHistoryRef.current,
+            { role: 'assistant', text: data.response },
+          ];
+        }
+
+        masterStateRef.current = data.nextState;
+        setMasterState(data.nextState);
+
+        // Start generation — fire once, only if no job is running
+        if (
+          !isSystemMsg &&
+          data.action === 'generate_exercise' &&
+          data.exerciseName &&
+          !currentJobIdRef.current &&
+          !generationPendingRef.current
+        ) {
+          aiExerciseNameRef.current = data.exerciseName;
+          setAiExerciseName(data.exerciseName);
+          await startExerciseGeneration(data.exerciseName);
+        }
+
+      } catch (e) {
+        console.error('Master agent error:', e);
+      } finally {
+        if (!frameSnapshot) isSendingRef.current = false;
       }
+    };
 
-    } catch (e) {
-      console.error('Master agent error:', e);
-    } finally {
-      if (!frameSnapshot) isSendingRef.current = false;
-    }
+    const queuedTurn = masterTurnQueueRef.current.then(runTurn, runTurn);
+    masterTurnQueueRef.current = queuedTurn.catch(() => undefined);
+    return queuedTurn;
   };
 
   // ── Start exercise generation (async job) ─────────────────────────────────
   const startExerciseGeneration = async (name: string) => {
-    if (currentJobIdRef.current) return; // already running
+    if (currentJobIdRef.current || generationPendingRef.current) return; // already running
+    generationPendingRef.current = true;
     setAiStatus('generating');
+    setJobStatus('queued');
+    jobStatusRef.current = 'queued';
     setAiTesterResult(null);
     aiAnalyzerFnRef.current = null;
     aiAnalyzerStateRef.current = { phase: 'neutral', reps: 0 };
@@ -485,15 +572,17 @@ export default function FitnessPage() {
       if (!jobId) throw new Error(error || 'No jobId returned');
 
       currentJobIdRef.current = jobId;
-      setJobStatus('queued');
-      jobStatusRef.current = 'queued';
       setJobLog([]);
       setShowJobLog(true);
       startJobPolling(jobId);
     } catch (e: any) {
       setAiStatus('error');
+      setJobStatus(null);
+      jobStatusRef.current = null;
       console.error('Generate start error:', e);
       speakMaster(`Sorry, couldn't start generating ${name}.`);
+    } finally {
+      generationPendingRef.current = false;
     }
   };
 
@@ -511,6 +600,10 @@ export default function FitnessPage() {
   // ── Speech recognition ───────────────────────────────────────────────────
   const startListening = () => {
     if (typeof window === 'undefined') return;
+    listeningDesiredRef.current = true;
+    if (!sessionStartedRef.current || isExerciseActiveRef.current || isSpeakingRef.current) {
+      return;
+    }
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) { speak("Speech recognition not supported. Please use Chrome."); return; }
 
@@ -531,6 +624,8 @@ export default function FitnessPage() {
       if (isSpeakingRef.current) return;
       if (isExerciseActiveRef.current) return;
       const now = Date.now();
+      // Drop lingering TTS tail captured in the 1s after speech ends
+      if (now - lastTtsEndRef.current < 1000) return;
       if (
         transcript === lastTranscriptRef.current &&
         now - lastTranscriptAtRef.current < 5000
@@ -543,35 +638,41 @@ export default function FitnessPage() {
       sendToMaster(transcript);
     };
     recognition.onerror = (event: any) => {
-      if (event.error !== 'no-speech') {
-        setIsListening(false);
+      setIsListening(false);
+      if (recognitionRef.current === recognition) {
         recognitionRef.current = null;
+      }
+      if (event.error !== 'not-allowed' && event.error !== 'service-not-allowed') {
+        resumeListeningIfNeeded(500);
       }
     };
     recognition.onend = () => {
       if (recognitionRef.current === recognition) {
         recognitionRef.current = null;
       }
-      // Only restart if we stopped because of natural end, NOT because speakMaster paused it
-      if (sessionStartedRef.current && !isSpeakingRef.current && !isExerciseActiveRef.current) {
-        setTimeout(() => {
-          if (sessionStartedRef.current && !recognitionRef.current && !isSpeakingRef.current && !isExerciseActiveRef.current) {
-            startListening();
-          }
-        }, 150);
-      }
+      setIsListening(false);
+      resumeListeningIfNeeded();
     };
 
     recognitionRef.current = recognition;
-    recognition.start();
-    setIsListening(true);
+    try {
+      recognition.start();
+      setIsListening(true);
+    } catch (error) {
+      recognitionRef.current = null;
+      setIsListening(false);
+      console.error('Speech recognition start failed:', error);
+      resumeListeningIfNeeded(600);
+    }
   };
 
   const stopListening = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.onend = null;
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
+    listeningDesiredRef.current = false;
+    const activeRecognition = recognitionRef.current;
+    recognitionRef.current = null;
+    if (activeRecognition) {
+      activeRecognition.onend = null;
+      activeRecognition.stop();
     }
     setIsListening(false);
   };
@@ -586,11 +687,8 @@ export default function FitnessPage() {
     setSessionStarted(true);
     try {
       await sendToMaster('Hello, I just opened the fitness assistant.');
-      setTimeout(() => {
-        if (sessionStartedRef.current && !isExerciseActiveRef.current) {
-          startListening();
-        }
-      }, 900);
+      listeningDesiredRef.current = true;
+      resumeListeningIfNeeded(250);
     } finally {
       sessionStartingRef.current = false;
     }
@@ -739,10 +837,15 @@ export default function FitnessPage() {
     sessionTrackingRef.current = createEmptySessionTracker();
   };
 
+  const persistSessionRef = useRef(persistSession);
+  useEffect(() => {
+    persistSessionRef.current = persistSession;
+  }, [persistSession]);
+
   useEffect(() => {
     return () => {
       if (isExerciseActiveRef.current) {
-        void persistSession('abandoned');
+        void persistSessionRef.current('abandoned');
       }
       stopListening();
       sessionStartedRef.current = false;
@@ -751,7 +854,23 @@ export default function FitnessPage() {
       clearInterval(frameMonitorTimerRef.current);
       window.speechSynthesis?.cancel();
     };
-  }, [persistSession]);
+  }, []);
+
+  useEffect(() => {
+    const watchdogId = window.setInterval(() => {
+      if (
+        listeningDesiredRef.current &&
+        sessionStartedRef.current &&
+        !recognitionRef.current &&
+        !isSpeakingRef.current &&
+        !isExerciseActiveRef.current
+      ) {
+        startListening();
+      }
+    }, 1000);
+
+    return () => window.clearInterval(watchdogId);
+  }, []);
 
   // ── Pose handler ─────────────────────────────────────────────────────────
   const handlePoseDetected = useCallback((landmarks: any) => {
@@ -772,8 +891,15 @@ export default function FitnessPage() {
           lastRepCountRef.current = result.reps;
         }
         if (now - lastFormWarningRef.current > 6000) {
-          const high = result.formIssues?.find(i => i.severity === 'HIGH');
-          if (high) { speak(high.message); lastFormWarningRef.current = now; }
+          const prioritizedIssue =
+            result.formIssues?.find((issue) => issue.severity === 'HIGH') ||
+            result.formIssues?.find((issue) => issue.severity === 'MEDIUM') ||
+            result.formIssues?.[0];
+
+          if (prioritizedIssue) {
+            const issueKey = `${prioritizedIssue.severity}:${prioritizedIssue.joint || 'generic'}:${prioritizedIssue.message}`;
+            speakWithCooldown(prioritizedIssue.message, 'high', 6000, issueKey);
+          }
         }
       }
     } catch (e) { console.error('AI analyzer error:', e); }
@@ -795,6 +921,7 @@ export default function FitnessPage() {
     setAiMetrics({ reps: 0, phase: 'neutral', formIssues: [], isValidPosition: false });
     lastRepCountRef.current = 0;
     lastFormWarningRef.current = 0;
+    lastWarningByKeyRef.current = {};
     masterStateRef.current = 'exercising';
     setMasterState('exercising');
     speak(SESSION_MESSAGES.START.text, SESSION_MESSAGES.START.priority);
