@@ -40,23 +40,30 @@ export async function POST(request: NextRequest) {
       optimizationPreferences: validated.optimization_preferences,
     });
 
-    await trackNutritionActivitySafely({
-      userId: validated.user_id,
-      actionType: "authentic_optimization_completed",
-      data: {
-        query: validated.query,
-        cuisine: validated.cuisine || "",
-        optimization_preferences: validated.optimization_preferences.slice(0, 10),
-        baseline_dish: optimized.result.baseline.dish_name,
-        optimized_recipe_title: optimized.result.optimized_recipe.title,
-      },
-    });
+    if (optimized.optimization) {
+      await trackNutritionActivitySafely({
+        userId: validated.user_id,
+        actionType: "authentic_optimization_completed",
+        data: {
+          query: validated.query,
+          cuisine: validated.cuisine || "",
+          optimization_preferences: validated.optimization_preferences.slice(0, 10),
+          baseline_dish: optimized.optimization.baseline.dish_name,
+          optimized_recipe_title: optimized.optimization.optimized_recipe.title,
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,
-      optimization: optimized.result,
+      optimization: optimized.optimization,
       generated_with_gemini: optimized.generated_with_gemini,
       model: optimized.model,
+      parsed_query: optimized.parsed_query,
+      retrieval: optimized.retrieval,
+      needs_clarification: optimized.needs_clarification,
+      clarification_message: optimized.clarification_message,
+      validation: optimized.validation,
     });
   } catch (error) {
     console.error("Failed to optimize authentic dish:", error);

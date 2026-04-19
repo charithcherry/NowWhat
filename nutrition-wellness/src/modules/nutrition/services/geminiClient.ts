@@ -192,6 +192,8 @@ Workout context: ${params.workoutContext || "not provided"}
     profile: Partial<NutritionProfile>;
     baseline: AuthenticBaseline;
     optimizationPreferences: string[];
+    modifiers?: string[];
+    validationFeedback?: string;
   }): Promise<{ optimized_recipe: PantryMealDraft; change_summary: string[] }> {
     const prompt = `
 You are a culturally aware recipe optimizer.
@@ -220,16 +222,24 @@ Return strict JSON:
 
 User query: ${params.query}
 Optimization preferences: ${params.optimizationPreferences.join(", ") || "none"}
+Parsed modifiers: ${params.modifiers?.join(", ") || "none"}
 User profile:
 ${profileContext(params.profile)}
 
 Traditional baseline:
 Dish: ${params.baseline.dish_name}
+Aliases: ${params.baseline.aliases?.join(", ") || "none"}
 Cuisine: ${params.baseline.cuisine}
 Traditional summary: ${params.baseline.traditional_summary}
 Core ingredients: ${params.baseline.core_ingredients.join(", ")}
 Baseline steps: ${params.baseline.baseline_steps.join(" | ")}
 Reference note: ${params.baseline.source_reference}
+
+Identity rules:
+- The optimized recipe title must explicitly include "${params.baseline.dish_name}".
+- Keep the dish recognizably ${params.baseline.dish_name}; do not rename it as a different dish.
+- Keep cuisine anchored to ${params.baseline.cuisine}.
+${params.validationFeedback ? `Validation feedback from a rejected prior attempt: ${params.validationFeedback}` : ""}
 `;
 
     const parsed = await this.generateJson(prompt);

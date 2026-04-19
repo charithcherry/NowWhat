@@ -118,17 +118,99 @@ export interface PantryMealDraft extends ModuleResultCard {
 
 export interface AuthenticBaseline {
   dish_name: string;
+  aliases?: string[];
   cuisine: string;
   traditional_summary: string;
   core_ingredients: string[];
   baseline_steps: string[];
   source_reference: string;
+  source_url?: string;
+  source_provider?: AuthenticDishProviderName;
+}
+
+export type AuthenticDishProviderName =
+  | "cached_library"
+  | "external_cache"
+  | "wikidata"
+  | "dbpedia"
+  | "usda_fooddata_central"
+  | "open_food_facts"
+  | "dev_mock_fallback";
+
+export interface AuthenticDishLibraryEntry {
+  canonical_name: string;
+  aliases: string[];
+  cuisine: string;
+  traditional_summary: string;
+  core_ingredients: string[];
+  baseline_steps: string[];
+  source_label: string;
+  source_url?: string;
+  source_provider?: AuthenticDishProviderName;
+  external_id?: string;
+  nutrition_notes?: string[];
+}
+
+export interface CachedAuthenticDishLibraryEntry extends AuthenticDishLibraryEntry {
+  _id?: string;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export interface AuthenticOptimizationResult {
   baseline: AuthenticBaseline;
   optimized_recipe: PantryMealDraft;
   change_summary: string[];
+}
+
+export interface ParsedAuthenticDishQuery {
+  raw_query: string;
+  dish_name: string;
+  modifiers: string[];
+}
+
+export type AuthenticDishMatchSource =
+  | "cached_library"
+  | "external_cache"
+  | "wikidata"
+  | "dbpedia"
+  | "usda_fooddata_central"
+  | "open_food_facts"
+  | "dev_mock_fallback"
+  | "none";
+
+export interface AuthenticDishMatchCandidate {
+  dish_name: string;
+  cuisine: string;
+  matched_alias?: string;
+  confidence: ConfidenceLevel;
+  score: number;
+}
+
+export interface AuthenticDishResolution {
+  baseline: AuthenticBaseline | null;
+  confidence: ConfidenceLevel;
+  score: number;
+  matched_alias?: string;
+  match_source: AuthenticDishMatchSource;
+  needs_clarification: boolean;
+  clarification_message?: string;
+  suggestions: AuthenticDishMatchCandidate[];
+  providers_checked?: AuthenticDishProviderName[];
+}
+
+export interface AuthenticOptimizationResponse {
+  optimization: AuthenticOptimizationResult | null;
+  generated_with_gemini: boolean;
+  model?: string;
+  parsed_query: ParsedAuthenticDishQuery;
+  retrieval: AuthenticDishResolution;
+  needs_clarification: boolean;
+  clarification_message?: string;
+  validation: {
+    attempted_regeneration: boolean;
+    generation_validated: boolean;
+  };
 }
 
 export interface RecipeLibraryEntry {

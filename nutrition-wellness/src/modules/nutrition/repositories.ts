@@ -2,6 +2,7 @@ import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/mongodb";
 import type {
   AuthenticDishRequest,
+  CachedAuthenticDishLibraryEntry,
   GeneratedRecipe,
   NutritionActivityType,
   NutritionInsightMemory,
@@ -23,6 +24,7 @@ const COLLECTIONS = {
   recipeModifications: "recipe_modifications",
   savedRecipes: "saved_recipes",
   authenticRequests: "authentic_dish_requests",
+  authenticBaselineCache: "authentic_dish_baselines_cache",
   insights: "meal_pattern",
   insightMemory: "nutrition_insight_memory",
   insightSessions: "nutrition_sessions_summary",
@@ -389,6 +391,54 @@ export async function createAuthenticDishRequest(
     ...body,
     _id: String(result.insertedId),
   };
+}
+
+export async function listCachedAuthenticDishBaselines(): Promise<Array<CachedAuthenticDishLibraryEntry & { _id?: string }>> {
+  const db = await getDatabase();
+  const docs = await db
+    .collection<CachedAuthenticDishLibraryEntry>(COLLECTIONS.authenticBaselineCache)
+    .find({})
+    .sort({ updated_at: -1 })
+    .toArray();
+
+  return serializeMany(docs as unknown as CachedAuthenticDishLibraryEntry[]) as Array<CachedAuthenticDishLibraryEntry & { _id?: string }>;
+}
+
+export async function upsertCachedAuthenticDishBaseline(
+  entry: Omit<CachedAuthenticDishLibraryEntry, "_id" | "created_at" | "updated_at">,
+): Promise<CachedAuthenticDishLibraryEntry & { _id?: string }> {
+  const db = await getDatabase();
+  const now = new Date();
+  const normalizedAliases = Array.from(new Set(entry.aliases.map((item) => item.trim()).filter(Boolean)));
+
+  await db.collection<CachedAuthenticDishLibraryEntry>(COLLECTIONS.authenticBaselineCache).updateOne(
+    {
+      canonical_name: entry.canonical_name,
+      source_provider: entry.source_provider || "external_cache",
+    },
+    {
+      $set: {
+        ...entry,
+        aliases: normalizedAliases,
+        updated_at: now,
+      },
+      $setOnInsert: {
+        created_at: now,
+      },
+    },
+    { upsert: true },
+  );
+
+  const saved = await db.collection<CachedAuthenticDishLibraryEntry>(COLLECTIONS.authenticBaselineCache).findOne({
+    canonical_name: entry.canonical_name,
+    source_provider: entry.source_provider || "external_cache",
+  });
+
+  if (!saved) {
+    throw new Error("Failed to persist authentic dish baseline cache entry");
+  }
+
+  return serializeId(saved as CachedAuthenticDishLibraryEntry) as CachedAuthenticDishLibraryEntry & { _id?: string };
 }
 
 export async function replaceWellnessInsights(

@@ -1,5 +1,5 @@
 import type {
-  AuthenticOptimizationResult,
+  AuthenticOptimizationResponse,
   GeneratedRecipe,
   NutritionProfile,
   PantryItem,
@@ -88,11 +88,7 @@ export async function optimizeAuthenticDish(params: {
     body: JSON.stringify(payload),
   });
 
-  const body = await safeJson<{
-    optimization: AuthenticOptimizationResult;
-    generated_with_gemini: boolean;
-    model?: string;
-  }>(response);
+  const body = await safeJson<AuthenticOptimizationResponse>(response);
 
   return body;
 }
