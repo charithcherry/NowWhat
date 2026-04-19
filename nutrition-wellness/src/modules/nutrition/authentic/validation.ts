@@ -19,14 +19,47 @@ function includesDishName(haystack: string, needle: string) {
   return haystack.includes(normalizedNeedle);
 }
 
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function titleStartsWithDishName(title: string, names: string[]) {
+  const normalizedTitle = normalizeDishText(title);
+  return names.some((name) => normalizedTitle.startsWith(normalizeDishText(name)));
+}
+
+function moveDishNameToFront(title: string, baselineNames: string[], canonicalName: string) {
+  const matchedName = baselineNames.find((name) => new RegExp(escapeRegex(name), "i").test(title));
+  if (!matchedName) {
+    return `${canonicalName} - ${title}`.trim();
+  }
+
+  const withoutMatchedName = title
+    .replace(new RegExp(escapeRegex(matchedName), "i"), "")
+    .replace(/^[\s\-:–|]+/, "")
+    .replace(/[\s\-:–|]+$/, "")
+    .trim();
+
+  if (!withoutMatchedName) {
+    return canonicalName;
+  }
+
+  return `${canonicalName} - ${withoutMatchedName}`;
+}
+
 export function enforceOptimizedDishIdentity(recipe: PantryMealDraft, baseline: AuthenticBaseline): PantryMealDraft {
-  const normalizedTitle = normalizeDishText(recipe.title);
   const baselineNames = listBaselineNames(baseline);
+  const normalizedTitle = normalizeDishText(recipe.title);
   const alreadyNamed = baselineNames.some((name) => includesDishName(normalizedTitle, name));
+  const nextTitle = !alreadyNamed
+    ? `${baseline.dish_name} - ${recipe.title}`.trim()
+    : titleStartsWithDishName(recipe.title, baselineNames)
+      ? recipe.title
+      : moveDishNameToFront(recipe.title, baselineNames, baseline.dish_name);
 
   return {
     ...recipe,
-    title: alreadyNamed ? recipe.title : `${baseline.dish_name} - ${recipe.title}`.trim(),
+    title: nextTitle,
     cuisine: baseline.cuisine,
   };
 }

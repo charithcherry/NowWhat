@@ -8,6 +8,13 @@ import {
 } from "recharts";
 import { motion } from "framer-motion";
 import { AgentChat } from "@/components/AgentChat";
+import {
+  formatMstDayKey,
+  formatMstMonthKey,
+  formatMstTimestamp,
+  formatMstTrendPeriod,
+  type TrendGranularity,
+} from "@/lib/dashboardDates";
 
 const EXERCISE_COLORS = [
   "#00ff88",
@@ -20,38 +27,12 @@ const EXERCISE_COLORS = [
   "#38bdf8",
 ];
 
-function formatShortDate(value: string) {
-  return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
-function formatMonthLabel(value: string) {
-  return new Date(value).toLocaleDateString(undefined, { month: "long", year: "numeric" });
-}
-
 function formatExerciseLabel(value: string) {
   return value
     .split(" ")
     .map((part) => part.slice(0, 3))
     .join(" ")
     .slice(0, 9);
-}
-
-function formatTrendPeriod(value: string, granularity: "day" | "month" | "year") {
-  if (granularity === "year") {
-    return value;
-  }
-
-  if (granularity === "month") {
-    return new Date(`${value}-01T00:00:00`).toLocaleDateString(undefined, {
-      month: "short",
-      year: "numeric",
-    });
-  }
-
-  return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
 }
 
 export default function DashboardClient({ 
@@ -74,7 +55,7 @@ export default function DashboardClient({
   userName: string
 }) {
   const [selectedExercises, setSelectedExercises] = useState<string[]>([]);
-  const [trendGranularity, setTrendGranularity] = useState<"day" | "month" | "year">("day");
+  const [trendGranularity, setTrendGranularity] = useState<TrendGranularity>("day");
   const exerciseColorMap = Object.fromEntries(
     exerciseKeys.map((exerciseName, index) => [
       exerciseName,
@@ -145,8 +126,8 @@ export default function DashboardClient({
     if (!repTrendMap.has(periodKey)) {
       repTrendMap.set(periodKey, {
         periodKey,
-        label: formatTrendPeriod(periodKey, trendGranularity),
-        fullLabel: formatTrendPeriod(periodKey, trendGranularity),
+        label: formatMstTrendPeriod(periodKey, trendGranularity),
+        fullLabel: formatMstTrendPeriod(periodKey, trendGranularity),
         reps: 0,
       });
     }
@@ -224,7 +205,7 @@ export default function DashboardClient({
                  <LineChartIcon className="w-5 h-5" />
                </div>
                <p className="text-doom-muted text-xs md:text-sm font-medium">Last Workout</p>
-               <p suppressHydrationWarning className="text-lg md:text-xl font-bold text-orange-400 pt-0.5">{new Date(totals.mostRecentDate).toLocaleDateString()}</p>
+               <p suppressHydrationWarning className="text-lg md:text-xl font-bold text-orange-400 pt-0.5">{formatMstTimestamp(totals.mostRecentDate)}</p>
              </motion.div>
           )}
         </div>
@@ -357,14 +338,14 @@ export default function DashboardClient({
                       <div className="mb-2 min-h-[2.5rem] px-1">
                         {day.showMonthLabel ? (
                           <span className="inline-flex rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
-                            {formatMonthLabel(day.date)}
+                            {formatMstMonthKey(day.date)}
                           </span>
                         ) : null}
                       </div>
 
                       <div className="rounded-2xl border border-white/8 bg-black/25 p-3 shadow-inner shadow-black/20">
                         <div className="mb-3 border-b border-white/6 pb-2">
-                          <p className="text-sm font-semibold text-doom-text">{formatShortDate(day.date)}</p>
+                          <p className="text-sm font-semibold text-doom-text">{formatMstDayKey(day.date)}</p>
                           <p className="text-[11px] uppercase tracking-[0.16em] text-doom-muted">
                             {day.total} reps
                           </p>
@@ -497,7 +478,7 @@ export default function DashboardClient({
                     </div>
                     <div className="text-right flex items-center gap-4">
                        {mood.reps > 0 && <span className="text-sm font-bold text-doom-primary">{mood.reps} Reps Logged</span>}
-                       <p suppressHydrationWarning className="text-xs text-doom-muted">{new Date(mood.date).toLocaleDateString()}</p>
+                       <p suppressHydrationWarning className="text-xs text-doom-muted">{formatMstTimestamp(mood.date)}</p>
                     </div>
                   </div>
                 )) : (

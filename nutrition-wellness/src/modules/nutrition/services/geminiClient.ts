@@ -53,6 +53,19 @@ function cleanConfidence(value: unknown): ConfidenceLevel {
   return "medium";
 }
 
+function sanitizeContextualGroundingLine(line: string, fallback: string) {
+  const normalized = ensureGroundingLine(line);
+
+  if (
+    normalized.length > 160 ||
+    /\balbum\b|\bband\b|\bmovie\b|\bnovel\b|\bsong\b|\bif the original\b|\bintended nature\b|\bconfirming\b/i.test(normalized)
+  ) {
+    return fallback;
+  }
+
+  return normalized;
+}
+
 function profileContext(profile: Partial<NutritionProfile>) {
   return [
     `primary_goal: ${profile.primary_goal || "general_wellness"}`,
@@ -169,6 +182,7 @@ Rules:
 - Keep recipes practical and cookable.
 - Must respect preferences/restrictions.
 - Keep grounding line concise and natural.
+- Every meal must include a usable ingredient list and clear steps.
 - STRICT: do not hallucinate. If uncertain, say uncertainty briefly and avoid invented specifics.
 
 User profile:
@@ -220,6 +234,13 @@ Return strict JSON:
   "change_summary": ["string"]
 }
 
+Formatting rules:
+- The title must start with "${params.baseline.dish_name}" and then a short tweak label.
+- Do not prepend generic labels like "high protein" before the dish name.
+- Description, result, and why_it_fits should each be plain cooking language and at most 1 to 2 concise sentences.
+- change_summary must be 3 to 5 short bullets describing the concrete tweak first.
+- Always include a usable ingredient list and clear cooking steps.
+
 User query: ${params.query}
 Optimization preferences: ${params.optimizationPreferences.join(", ") || "none"}
 Parsed modifiers: ${params.modifiers?.join(", ") || "none"}
@@ -245,9 +266,13 @@ ${params.validationFeedback ? `Validation feedback from a rejected prior attempt
     const parsed = await this.generateJson(prompt);
     const optimizedRaw = (parsed.optimized_recipe || {}) as Record<string, unknown>;
     const changeSummary = cleanArray(parsed.change_summary);
+    const normalizedRecipe = normalizeMeal(optimizedRaw);
 
     return {
-      optimized_recipe: normalizeMeal(optimizedRaw),
+      optimized_recipe: {
+        ...normalizedRecipe,
+        also_check: sanitizeContextualGroundingLine(normalizedRecipe.also_check, GROUNDING_LINES.authentic),
+      },
       change_summary: changeSummary,
     };
   }

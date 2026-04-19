@@ -13,7 +13,7 @@ async function getDb() {
 
 // Collections Gemini is allowed to query + the userId field name each uses
 const ALLOWED_COLLECTIONS: Record<string, string> = {
-  sessions:                  "user_id",
+  fitness_sessions:          "user_id",
   nutrition_profiles:        "user_id",
   generated_recipes:         "user_id",
   saved_recipes:             "user_id",
@@ -36,6 +36,34 @@ const ALLOWED_COLLECTIONS: Record<string, string> = {
   community_connections:     "from_user_id",
 };
 
+const DEFAULT_SORTS: Record<string, Record<string, 1 | -1>> = {
+  fitness_sessions: { ended_at: -1 },
+  nutrition_profiles: { _id: -1 },
+  generated_recipes: { created_at: -1 },
+  saved_recipes: { saved_at: -1 },
+  pantry_items: { created_at: -1 },
+  skin_hair_profiles: { _id: -1 },
+  skin_logs: { created_at: -1 },
+  hair_logs: { created_at: -1 },
+  loved_products: { created_at: -1 },
+  product_recommendations: { created_at: -1 },
+  favorites: { timestamp: -1 },
+  clicks: { timestamp: -1 },
+  nutrition_insight_memory: { created_at: -1 },
+  yelp_insight: { timestamp: -1 },
+  skin_hair_pattern: { _id: -1 },
+  user_profiles: { _id: -1 },
+  community_posts: { created_at: -1 },
+  community_comments: { created_at: -1 },
+  community_moods: { created_at: -1 },
+  community_events: { date: 1 },
+  community_connections: { timestamp: -1 },
+};
+
+function looksLikePersonalDataQuestion(message: string) {
+  return /\b(age|birthday|birth date|date of birth|dob|height|weight|workout|exercise|session|rep|reps|recipe|ingredients|instructions|restaurant|favorite|favourite|user id|userid|profile id)\b/i.test(message);
+}
+
 // ── Tool definitions ───────────────────────────────────────────────────────
 const TOOLS = [
   {
@@ -57,7 +85,7 @@ const TOOLS = [
               description:
                 "Collection to query. " +
                 "'user_profiles' → DOB/height/weight/lifestyle. " +
-                "'sessions' → workout history. " +
+                "'fitness_sessions' → workout history. " +
                 "'skin_logs' → skin analysis history. " +
                 "'hair_logs' → hair analysis history. " +
                 "'generated_recipes' → AI-generated recipes. " +
@@ -116,9 +144,7 @@ async function executeTool(
     const userIdField = ALLOWED_COLLECTIONS[collection];
     const sortObj: Record<string, 1 | -1> = sort_field
       ? { [sort_field]: sort_order === "asc" ? 1 : -1 }
-      : collection === "community_connections"
-        ? { timestamp: -1 }
-        : { _id: -1 };
+      : DEFAULT_SORTS[collection] || { _id: -1 };
 
     const filter =
       collection === "community_connections"
@@ -211,18 +237,24 @@ USER ID: ${userId}
 CRITICAL RULES:
 1. You have a tool: get_user_data. USE IT whenever the user asks about their own data.
    - Asked about date of birth, age, height, weight? → call get_user_data("user_profiles")
-   - Asked about workouts or exercise sessions? → call get_user_data("sessions")
+   - Asked about workouts or exercise sessions? → call get_user_data("fitness_sessions")
    - Asked about recipes or food? → call get_user_data("generated_recipes") or "saved_recipes"
    - Asked about skin or hair? → call get_user_data("skin_logs") or "hair_logs"
    - Asked about restaurants or favorites? → call get_user_data("favorites")
    - Asked about nutrition goals? → call get_user_data("nutrition_profiles")
    - When in doubt about any personal data, CALL THE TOOL — never guess.
 2. Only state facts you can confirm from the profile context or tool results. Never hallucinate.
-3. Do not make medical diagnoses or prescribe treatments.
-4. Keep responses warm, concise (3-5 sentences), and specific to this user's real data.`;
+3. Never treat a previous assistant message as evidence about the user's facts. If the user asks about their own data, ignore old assistant claims and verify again.
+4. For recency questions, prefer the true timestamp fields from tool results such as ended_at, started_at, created_at, saved_at, or timestamp.
+5. If you mention a date, use an absolute date like "April 19, 2026" instead of a relative guess.
+6. If the tool returns no confirmed data, say that clearly instead of making up an answer.
+7. Do not make medical diagnoses or prescribe treatments.
+8. Keep responses warm, concise (3-5 sentences), and specific to this user's real data.`;
 
     // Build conversation (only real messages, no system prompt in contents)
-    const history = (messages || []).slice(-9);
+    const history = (messages || [])
+      .slice(-9)
+      .filter((msg: { role: string; content: string }) => !looksLikePersonalDataQuestion(message) || msg.role === "user");
     const contents: any[] = [
       ...history.map((msg: { role: string; content: string }) => ({
         role: msg.role === "user" ? "user" : "model",

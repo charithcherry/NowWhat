@@ -1,6 +1,7 @@
 import { getDatabase } from "@/lib/mongodb";
 import DashboardClient from "./DashboardClient";
 import { getCurrentUser } from "@/lib/auth";
+import { toMstDayKey } from "@/lib/dashboardDates";
 import { Navigation } from "@/components/Navigation";
 import { redirect } from "next/navigation";
 
@@ -53,7 +54,7 @@ export default async function FitnessDashboard() {
     const repsCompleted = Number(session.reps_completed || 0);
     const endedAt = session.ended_at ? new Date(session.ended_at) : null;
     const dayKey = endedAt && !Number.isNaN(endedAt.getTime())
-      ? endedAt.toISOString().slice(0, 10)
+      ? toMstDayKey(endedAt)
       : "Unknown";
 
     exerciseKeySet.add(exerciseName);

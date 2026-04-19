@@ -844,8 +844,22 @@ export function NutritionWellnessPage({ userId: initialUserId, userName }: Nutri
               </article>
 
               <article className="rounded-xl border border-doom-accent/30 bg-doom-bg/40 p-4 space-y-3">
+                <div className="rounded-lg border border-doom-accent/20 bg-doom-accent/10 p-3">
+                  <p className="text-sm uppercase tracking-wide text-doom-accent">Suggested tweak</p>
+                  {authResult.change_summary.length > 0 ? (
+                    <ul className="mt-2 text-base text-doom-text list-disc pl-5 space-y-1">
+                      {authResult.change_summary.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-2 text-base text-doom-text">{authResult.optimized_recipe.result}</p>
+                  )}
+                </div>
+
                 <div className="flex items-start justify-between gap-3">
                   <div>
+                    <p className="text-sm uppercase tracking-wide text-doom-muted">Optimized recipe</p>
                     <h3 className="text-lg font-semibold text-doom-text">{authResult.optimized_recipe.title}</h3>
                     <p className="text-base text-doom-muted">{authResult.optimized_recipe.description}</p>
                   </div>
@@ -857,6 +871,24 @@ export function NutritionWellnessPage({ userId: initialUserId, userName }: Nutri
                   >
                     {savingRecipeState === authResult.optimized_recipe.title ? "Saving..." : "Save Recipe"}
                   </button>
+                </div>
+
+                <div>
+                  <p className="text-base uppercase tracking-wide text-doom-muted mb-1">Ingredients</p>
+                  <ul className="text-base text-doom-text list-disc pl-5 space-y-1">
+                    {authResult.optimized_recipe.ingredients.map((ingredient) => (
+                      <li key={ingredient}>{ingredient}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div>
+                  <p className="text-base uppercase tracking-wide text-doom-muted mb-1">Steps</p>
+                  <ol className="text-base text-doom-text list-decimal pl-5 space-y-1">
+                    {authResult.optimized_recipe.instructions.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ol>
                 </div>
 
                 <p className="text-base text-doom-text">
@@ -871,15 +903,6 @@ export function NutritionWellnessPage({ userId: initialUserId, userName }: Nutri
                 <p className="text-base text-doom-accent">
                   <strong>{authResult.optimized_recipe.also_check}</strong>
                 </p>
-
-                <div>
-                  <p className="text-base uppercase tracking-wide text-doom-muted mb-1">What changed</p>
-                  <ul className="text-base text-doom-text list-disc pl-5 space-y-1">
-                    {authResult.change_summary.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
               </article>
             </div>
           ) : null}

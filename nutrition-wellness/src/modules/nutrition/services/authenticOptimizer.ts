@@ -14,6 +14,17 @@ function unique(items: string[]): string[] {
   return Array.from(new Set(items.map((item) => item.trim()).filter(Boolean)));
 }
 
+function validateOptimizedRecipe(recipe: PantryMealDraft, baseline: AuthenticBaseline): { valid: boolean; reason?: string } {
+  if (recipe.ingredients.length === 0 || recipe.instructions.length === 0) {
+    return {
+      valid: false,
+      reason: `The generated recipe for ${baseline.dish_name} did not include a usable ingredient list and cooking steps.`,
+    };
+  }
+
+  return validateOptimizedDishIdentity(recipe, baseline);
+}
+
 function includesAny(haystack: string, needles: string[]) {
   return needles.some((needle) => haystack.includes(needle));
 }
@@ -154,7 +165,7 @@ async function generateValidatedGeminiOptimization(params: {
   });
 
   let optimizedRecipe = enforceOptimizedDishIdentity(firstAttempt.optimized_recipe, params.baseline);
-  let validation = validateOptimizedDishIdentity(optimizedRecipe, params.baseline);
+  let validation = validateOptimizedRecipe(optimizedRecipe, params.baseline);
 
   if (!validation.valid) {
     attemptedRegeneration = true;
@@ -168,7 +179,7 @@ async function generateValidatedGeminiOptimization(params: {
     });
 
     optimizedRecipe = enforceOptimizedDishIdentity(secondAttempt.optimized_recipe, params.baseline);
-    validation = validateOptimizedDishIdentity(optimizedRecipe, params.baseline);
+    validation = validateOptimizedRecipe(optimizedRecipe, params.baseline);
 
     if (!validation.valid) {
       throw new Error(validation.reason || "Generated recipe drifted away from the resolved dish identity");

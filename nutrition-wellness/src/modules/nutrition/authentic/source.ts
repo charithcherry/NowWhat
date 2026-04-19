@@ -22,6 +22,7 @@ import {
   getEnabledAuthenticEnrichmentProviders,
   getEnabledAuthenticLookupProviders,
 } from "./externalProviders";
+import { sanitizeAuthenticDishEntry } from "./entryQuality";
 import { isGenericDishPhrase, meaningfulDishTokens, normalizeDishText, parseAuthenticDishQuery, tokenizeDishText } from "./queryParser";
 
 export interface AuthenticDishSearchResult {
@@ -141,6 +142,16 @@ function overlapRatio(queryTokens: string[], candidateTokens: string[]) {
   return matches.length / queryTokens.length;
 }
 
+function precisionRatio(queryTokens: string[], candidateTokens: string[]) {
+  if (queryTokens.length === 0 || candidateTokens.length === 0) {
+    return 0;
+  }
+
+  const querySet = new Set(queryTokens);
+  const matches = candidateTokens.filter((token) => querySet.has(token));
+  return matches.length / candidateTokens.length;
+}
+
 function phraseContained(haystack: string, phrase: string) {
   const normalizedHaystack = normalizeDishText(haystack);
   const normalizedPhrase = normalizeDishText(phrase);
@@ -181,6 +192,7 @@ function buildCandidate(entry: AuthenticDishLibraryEntry, parsed: ParsedAuthenti
 
   let score = 0;
   let matchedAlias: string | undefined;
+  let bestPrecision = precisionRatio(queryTokens, canonicalTokens);
 
   if (!queryName) {
     return {
@@ -230,7 +242,9 @@ function buildCandidate(entry: AuthenticDishLibraryEntry, parsed: ParsedAuthenti
     }
 
     for (const alias of entry.aliases) {
-      const aliasCoverage = overlapRatio(queryTokens, meaningfulDishTokens(alias));
+      const aliasTokens = meaningfulDishTokens(alias);
+      const aliasCoverage = overlapRatio(queryTokens, aliasTokens);
+      bestPrecision = Math.max(bestPrecision, precisionRatio(queryTokens, aliasTokens));
       if (queryTokens.length >= 2) {
         if (aliasCoverage === 1) {
           matchedAlias = matchedAlias || alias;
@@ -254,6 +268,10 @@ function buildCandidate(entry: AuthenticDishLibraryEntry, parsed: ParsedAuthenti
   }
 
   score += scoreIngredientTieBreaker(rawQuery, entry.core_ingredients);
+
+  if (queryTokens.length >= 2 && score < 95 && bestPrecision < 0.6) {
+    score -= 24;
+  }
 
   if (queryTokens.length <= 1 && score < 90) {
     score -= 18;
@@ -304,6 +322,8 @@ function resolveFromEntries(
   cuisine?: string,
 ): AuthenticDishResolution {
   const scored = dedupeEntries(entries)
+    .map((entry) => sanitizeAuthenticDishEntry(entry))
+    .filter((entry): entry is AuthenticDishLibraryEntry => Boolean(entry))
     .map((entry) => buildCandidate(entry, parsed, cuisine))
     .filter((candidate) => candidate.score > 0)
     .sort((a, b) => b.score - a.score);
@@ -431,15 +451,23 @@ export class OnlineAuthenticDishSource implements AuthenticDishSource {
       ) || onlineEntries[0];
 
     const enriched = await enrichAuthenticDishEntry(matchedEntry);
+    const safeEntry = sanitizeAuthenticDishEntry(enriched) || sanitizeAuthenticDishEntry(matchedEntry);
     const enrichedProvidersChecked = Array.from(
       new Set<AuthenticDishProviderName>([...providersChecked, ...getEnabledAuthenticEnrichmentProviders()]),
     );
 
+    if (!safeEntry) {
+      return {
+        parsed_query: parsedQuery,
+        resolution,
+      };
+    }
+
     try {
       await upsertCachedAuthenticDishBaseline({
-        ...enriched,
+        ...safeEntry,
         source_provider: "external_cache",
-        source_label: `Cached external baseline via ${matchedEntry.source_provider || resolution.match_source}: ${enriched.source_label}`,
+        source_label: `Cached external baseline via ${matchedEntry.source_provider || resolution.match_source}: ${safeEntry.source_label}`,
       });
     } catch (error) {
       console.warn("Failed to persist external authentic dish baseline cache entry:", error);
@@ -449,7 +477,7 @@ export class OnlineAuthenticDishSource implements AuthenticDishSource {
       parsed_query: parsedQuery,
       resolution: {
         ...resolution,
-        baseline: toBaseline(enriched),
+        baseline: toBaseline(safeEntry),
         providers_checked: enrichedProvidersChecked,
       },
     };

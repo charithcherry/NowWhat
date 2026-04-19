@@ -73,7 +73,7 @@ export default function EventsCalendar({ userId }: EventsCalendarProps) {
 
   async function loadEvents() {
     try {
-      const res = await fetch("/api/events");
+      const res = await fetch(apiUrl("/api/events"));
       if (res.ok) setEvents(await res.json());
     } catch { /* silently fail */ }
     setLoading(false);

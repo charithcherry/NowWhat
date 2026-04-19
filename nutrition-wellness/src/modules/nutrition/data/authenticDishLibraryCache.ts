@@ -76,6 +76,21 @@ export const CACHED_AUTHENTIC_DISH_LIBRARY: AuthenticDishLibraryEntry[] = [
     source_url: "https://en.wikipedia.org/wiki/Pad_thai",
   },
   {
+    canonical_name: "Piña Colada",
+    aliases: ["pina colada", "piña colada"],
+    cuisine: "Caribbean",
+    traditional_summary:
+      "A tropical drink built from pineapple, coconut, and usually rum, blended or shaken until creamy.",
+    core_ingredients: ["pineapple juice", "coconut cream", "white rum", "ice"],
+    baseline_steps: [
+      "Blend or shake pineapple, coconut, and rum with ice until chilled and lightly frothy.",
+      "Adjust the sweetness or acidity while keeping the signature pineapple-coconut balance.",
+      "Serve cold, with or without garnish, as a tropical beverage.",
+    ],
+    source_label: "Cached tropical drink reference",
+    source_url: "https://en.wikipedia.org/wiki/Pi%C3%B1a_colada",
+  },
+  {
     canonical_name: "Shakshuka",
     aliases: ["shakshuka", "shakshouka"],
     cuisine: "Middle Eastern",
@@ -206,6 +221,20 @@ export const CACHED_AUTHENTIC_DISH_LIBRARY: AuthenticDishLibraryEntry[] = [
       "Finish with curry leaves and coconut oil.",
     ],
     source_label: "Cached Kerala/Tamil mixed-vegetable reference",
+  },
+  {
+    canonical_name: "Aloo Posto",
+    aliases: ["aloo posto", "alu posto", "aloo posto curry"],
+    cuisine: "Indian",
+    traditional_summary:
+      "A Bengali potato dish where potatoes are coated in a poppy seed paste, usually lightly spiced with green chili and finished with mustard oil.",
+    core_ingredients: ["potato", "white poppy seeds", "green chili", "mustard oil", "nigella seeds", "salt"],
+    baseline_steps: [
+      "Soak and grind poppy seeds into a coarse paste with green chili.",
+      "Temper mustard oil with nigella seeds, then cook the potatoes until just tender.",
+      "Fold in the poppy seed paste, simmer briefly, and finish with a little more mustard oil before serving.",
+    ],
+    source_label: "Cached Bengali home-style reference",
   },
   {
     canonical_name: "Pesarattu",
