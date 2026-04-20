@@ -1,9 +1,11 @@
+.gcloudignore
+.git
+.gitignore
 node_modules
 **/node_modules
 .next
 **/.next
-.git
 .env*
-!.env.example
 *.log
+exercise-log.txt
 tsconfig.tsbuildinfo
