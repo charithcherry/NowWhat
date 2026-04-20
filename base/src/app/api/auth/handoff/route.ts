@@ -239,7 +239,7 @@ export async function POST(request: NextRequest) {
     }
 
     await setAuthCookie(handoff.sessionToken);
-    return NextResponse.redirect(new URL(handoff.redirectPath, request.nextUrl.origin));
+    return NextResponse.redirect(new URL(handoff.redirectPath, request.nextUrl.origin), { status: 303 });
   } catch (error) {
     console.error('Auth handoff error:', error);
     return NextResponse.json({ error: 'Failed to complete auth handoff' }, { status: 500 });

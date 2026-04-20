@@ -24,6 +24,10 @@ interface NavigationProps {
   user?: AuthUser | null;
 }
 
+const communityEntryUrl =
+  process.env.NEXT_PUBLIC_COMMUNITY_ENTRY_URL ||
+  `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/community`;
+
 const menuItems: MenuItem[] = [
   { 
     name: "Dashboard", 
@@ -56,7 +60,7 @@ const menuItems: MenuItem[] = [
   },
   { 
     name: "Community", 
-    href: process.env.NEXT_PUBLIC_COMMUNITY_URL || "http://localhost:3000/community", 
+    href: communityEntryUrl, 
     icon: Users2, 
     color: "text-pink-400", 
     external: true 

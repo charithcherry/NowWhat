@@ -15,13 +15,17 @@ interface NavigationProps {
   user?: User;
 }
 
+const communityEntryUrl =
+  process.env.NEXT_PUBLIC_COMMUNITY_ENTRY_URL ||
+  `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/community`;
+
 const menuItems = [
   { name: "Home", href: process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000", icon: Home, color: "text-doom-primary" },
   { name: "Dashboard", href: process.env.NEXT_PUBLIC_FITNESS_URL || "http://localhost:3005", icon: Activity, color: "text-doom-accent" },
   { name: "Physical Fitness", href: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/fitness`, icon: Dumbbell, color: "text-doom-primary" },
   { name: "Nutrition", href: process.env.NEXT_PUBLIC_NUTRITION_URL || "http://localhost:3003", icon: Apple, color: "text-green-400" },
   { name: "Find Restaurants", href: process.env.NEXT_PUBLIC_RESTAURANTS_URL || "http://localhost:3004", icon: UtensilsCrossed, color: "text-yellow-400" },
-  { name: "Community", href: process.env.NEXT_PUBLIC_COMMUNITY_URL || "http://localhost:3000/community", icon: Users2, color: "text-pink-400" },
+  { name: "Community", href: communityEntryUrl, icon: Users2, color: "text-pink-400" },
 ];
 
 export function Navigation({ user }: NavigationProps) {

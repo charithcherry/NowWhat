@@ -18,7 +18,8 @@ interface NavigationProps {
 
 /** Same entry other apps use (base proxies /community → community app on :3006). */
 const communityEntryUrl =
-  process.env.NEXT_PUBLIC_COMMUNITY_URL || "http://localhost:3000/community";
+  process.env.NEXT_PUBLIC_COMMUNITY_ENTRY_URL ||
+  `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/community`;
 
 const menuItems = [
   { name: "Home", href: process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000", icon: Home, color: "text-doom-primary" },
