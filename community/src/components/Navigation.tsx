@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { publicAsset } from "@/lib/paths";
+import { apiUrl, publicAsset } from "@/lib/paths";
 import { Menu, X, Users2, Home, Dumbbell, UtensilsCrossed, Droplet, Apple, Activity, UserRound, LogOut } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -20,6 +20,8 @@ interface NavigationProps {
 const communityEntryUrl =
   process.env.NEXT_PUBLIC_COMMUNITY_ENTRY_URL ||
   `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/community`;
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+const profileUrl = `${baseUrl}/profile`;
 
 const menuItems = [
   { name: "Home", href: process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000", icon: Home, color: "text-doom-primary" },
@@ -35,20 +37,23 @@ export function Navigation({ user }: NavigationProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  const handleExternalNav = (event: React.MouseEvent, href: string) => {
+    event.preventDefault();
+    window.location.href = `${apiUrl("/api/auth/handoff")}?target=${encodeURIComponent(href)}`;
+  };
+
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-      await fetch(`${baseUrl}/api/auth/logout`, {
+      await fetch(apiUrl("/api/auth/logout"), {
         method: "POST",
-        credentials: "include",
       });
     } catch (error) {
       console.error("Logout API failed:", error);
     } finally {
       // Clear agent profile memory
       Object.keys(localStorage).filter((k) => k.startsWith("wb_agent_profile_")).forEach((k) => localStorage.removeItem(k));
-      window.location.href = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+      window.location.href = baseUrl;
     }
   };
 
@@ -77,6 +82,7 @@ export function Navigation({ user }: NavigationProps) {
                   <a
                     key={item.name}
                     href={item.href}
+                    onClick={(event) => handleExternalNav(event, item.href)}
                     className={`flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-doom-bg/50 transition-colors ${item.color}`}
                   >
                     <Icon className="w-5 h-5" />
@@ -87,7 +93,8 @@ export function Navigation({ user }: NavigationProps) {
 
               {user && (
                 <a
-                  href={`${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/profile`}
+                  href={profileUrl}
+                  onClick={(event) => handleExternalNav(event, profileUrl)}
                   className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-doom-bg/50 transition-colors text-doom-accent"
                 >
                   <UserRound className="w-5 h-5" />
@@ -164,7 +171,10 @@ export function Navigation({ user }: NavigationProps) {
                     >
                       <a
                         href={item.href}
-                        onClick={() => setIsOpen(false)}
+                        onClick={(event) => {
+                          setIsOpen(false);
+                          handleExternalNav(event, item.href);
+                        }}
                         className={`flex items-center space-x-4 p-4 rounded-lg hover:bg-doom-bg/50 transition-colors group ${item.color}`}
                       >
                         <div className="p-2 rounded-lg bg-doom-bg/50 group-hover:scale-110 transition-transform">
