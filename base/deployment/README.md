@@ -14,7 +14,13 @@ Ensure you have the following secrets/variables ready:
 - `MONGODB_URI`: Connection string for MongoDB.
 - `JWT_SECRET`: Shared secret for session signing.
 - `NEXT_PUBLIC_BASE_URL`: The final URL of this service (once deployed).
-- `NEXT_PUBLIC_FITNESS_URL`, `NEXT_PUBLIC_NUTRITION_URL`, etc.: URLs of the other microservices.
+- `NEXT_PUBLIC_FITNESS_URL`: URL of the fitness dashboard service.
+- `NEXT_PUBLIC_NUTRITION_URL`: URL of the nutrition wellness service.
+- `NEXT_PUBLIC_RESTAURANTS_URL`: URL of the restaurants service.
+- `NEXT_PUBLIC_SKIN_URL`: URL of the skin and hair service.
+- `NEXT_PUBLIC_COMMUNITY_URL`: URL of the community service, including `/community`.
+
+Every deployed service must know the full set of sibling service URLs. The auth handoff allowlist uses these values in production.
 
 ## Deployment Steps
 
@@ -52,7 +58,7 @@ gcloud run deploy wellbeing-base \
     --platform managed \
     --region us-central1 \
     --allow-unauthenticated \
-    --set-env-vars="MONGODB_URI=[SECRET],JWT_SECRET=[SECRET],NEXT_PUBLIC_BASE_URL=[YOUR_URL]"
+    --set-env-vars="MONGODB_URI=[SECRET],JWT_SECRET=[SECRET],NEXT_PUBLIC_BASE_URL=[YOUR_BASE_URL],NEXT_PUBLIC_FITNESS_URL=[YOUR_FITNESS_URL],NEXT_PUBLIC_NUTRITION_URL=[YOUR_NUTRITION_URL],NEXT_PUBLIC_RESTAURANTS_URL=[YOUR_RESTAURANTS_URL],NEXT_PUBLIC_SKIN_URL=[YOUR_SKIN_URL],NEXT_PUBLIC_COMMUNITY_URL=[YOUR_COMMUNITY_URL]"
 ```
 
 ## Local Testing

@@ -14,6 +14,12 @@ Ensure you have the following ready:
 - `YELP_API_KEY`: API key for Yelp Fusion.
 - `NEXT_PUBLIC_BASE_URL`: The URL of the **Base** microservice (e.g. `https://base-xxx.a.run.app`).
 - `NEXT_PUBLIC_RESTAURANTS_URL`: The final URL of **this** service (e.g. `https://restaurants-xxx.a.run.app`).
+- `NEXT_PUBLIC_FITNESS_URL`: The URL of the fitness dashboard service.
+- `NEXT_PUBLIC_NUTRITION_URL`: The URL of the nutrition wellness service.
+- `NEXT_PUBLIC_SKIN_URL`: The URL of the skin and hair service.
+- `NEXT_PUBLIC_COMMUNITY_URL`: The URL of the community service, including `/community`.
+
+Every deployed service must know the full set of sibling service URLs. The auth handoff allowlist uses these values in production.
 
 ## Deployment Steps
 
@@ -34,7 +40,7 @@ gcloud run deploy wellbeing-restaurants \
     --platform managed \
     --region us-central1 \
     --allow-unauthenticated \
-    --set-env-vars="MONGODB_URI=[SECRET],YELP_API_KEY=[SECRET],NEXT_PUBLIC_BASE_URL=[YOUR_BASE_URL],NEXT_PUBLIC_RESTAURANTS_URL=[YOUR_RESTAURANTS_URL]"
+    --set-env-vars="MONGODB_URI=[SECRET],YELP_API_KEY=[SECRET],NEXT_PUBLIC_BASE_URL=[YOUR_BASE_URL],NEXT_PUBLIC_FITNESS_URL=[YOUR_FITNESS_URL],NEXT_PUBLIC_NUTRITION_URL=[YOUR_NUTRITION_URL],NEXT_PUBLIC_RESTAURANTS_URL=[YOUR_RESTAURANTS_URL],NEXT_PUBLIC_SKIN_URL=[YOUR_SKIN_URL],NEXT_PUBLIC_COMMUNITY_URL=[YOUR_COMMUNITY_URL]"
 ```
 
 ## Local Testing

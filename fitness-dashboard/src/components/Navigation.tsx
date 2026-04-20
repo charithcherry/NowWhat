@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Menu, X, Dumbbell, Apple, Droplet, UtensilsCrossed, Users2, Activity, UserRound, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 interface MenuItem {
   name: string;
@@ -28,6 +27,8 @@ interface NavigationProps {
 const communityEntryUrl =
   process.env.NEXT_PUBLIC_COMMUNITY_ENTRY_URL ||
   `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/community`;
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+const profileUrl = `${baseUrl}/profile`;
 
 const menuItems: MenuItem[] = [
   { name: "Dashboard", href: process.env.NEXT_PUBLIC_FITNESS_URL || "http://localhost:3005", icon: Activity, color: "text-doom-accent", external: true },
@@ -40,16 +41,18 @@ const menuItems: MenuItem[] = [
 
 export function Navigation({ user }: NavigationProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const router = useRouter();
 
   const getHref = (item: MenuItem) => item.href;
 
+  const handleExternalNav = (event: React.MouseEvent, href: string) => {
+    event.preventDefault();
+    window.location.href = `/api/auth/handoff?target=${encodeURIComponent(href)}`;
+  };
+
   const handleLogout = async () => {
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-      await fetch(`${baseUrl}/api/auth/logout`, { 
+      await fetch("/api/auth/logout", {
         method: "POST",
-        credentials: "include"
       });
     } catch (err) {
       console.error("Logout API failed:", err);
@@ -58,7 +61,7 @@ export function Navigation({ user }: NavigationProps) {
       Object.keys(localStorage)
         .filter((k) => k.startsWith("wb_agent_profile_"))
         .forEach((k) => localStorage.removeItem(k));
-      window.location.href = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+      window.location.href = baseUrl;
     }
   };
 
@@ -69,8 +72,12 @@ export function Navigation({ user }: NavigationProps) {
         <div className="px-2">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <a href={`${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/`} className="flex items-center space-x-2">
-              <img src={`${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/assets/logo.jpg`} alt="What Now?" className="h-9 w-auto mix-blend-screen" />
+            <a
+              href={`${baseUrl}/`}
+              onClick={(event) => handleExternalNav(event, `${baseUrl}/`)}
+              className="flex items-center space-x-2"
+            >
+              <img src={`${baseUrl}/assets/logo.jpg`} alt="What Now?" className="h-9 w-auto mix-blend-screen" />
               <span className="text-xl font-bold text-doom-text hidden sm:block">What Now?</span>
             </a>
 
@@ -83,6 +90,7 @@ export function Navigation({ user }: NavigationProps) {
                     <a
                       key={item.name}
                       href={getHref(item)}
+                      onClick={(event) => handleExternalNav(event, getHref(item))}
                       className={`flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-doom-bg/50 transition-colors ${item.color}`}
                     >
                       <Icon className="w-5 h-5" />
@@ -109,7 +117,11 @@ export function Navigation({ user }: NavigationProps) {
                   <div className="h-8 w-px bg-doom-primary/30" />
 
                   {/* Profile Section */}
-                  <a href={`${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/profile`} className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-doom-bg/30 hover:bg-doom-bg/50 transition-colors">
+                  <a
+                    href={profileUrl}
+                    onClick={(event) => handleExternalNav(event, profileUrl)}
+                    className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-doom-bg/30 hover:bg-doom-bg/50 transition-colors"
+                  >
                     <UserRound className="w-5 h-5 text-doom-primary" />
                     <span className="text-sm font-medium text-doom-text">Profile</span>
                   </a>
@@ -192,7 +204,10 @@ export function Navigation({ user }: NavigationProps) {
                       {item.external ? (
                         <a
                           href={getHref(item)}
-                          onClick={() => setIsOpen(false)}
+                          onClick={(event) => {
+                            setIsOpen(false);
+                            handleExternalNav(event, getHref(item));
+                          }}
                           className={`flex items-center space-x-4 p-4 rounded-lg hover:bg-doom-bg/50 transition-colors group ${item.color}`}
                         >
                           <div className="p-2 rounded-lg bg-doom-bg/50 group-hover:scale-110 transition-transform">
