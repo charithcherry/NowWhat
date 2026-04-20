@@ -25,13 +25,17 @@ interface NavigationProps {
   user?: AuthUser | null;
 }
 
+const communityEntryUrl =
+  process.env.NEXT_PUBLIC_COMMUNITY_ENTRY_URL ||
+  `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/community`;
+
 const menuItems: MenuItem[] = [
   { name: "Dashboard", href: process.env.NEXT_PUBLIC_FITNESS_URL || "http://localhost:3005", icon: Activity, color: "text-doom-accent", external: true },
   { name: "Physical Fitness", href: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/fitness`, icon: Dumbbell, color: "text-doom-primary", external: true },
   { name: "Nutrition", href: process.env.NEXT_PUBLIC_NUTRITION_URL || "http://localhost:3003", icon: Apple, color: "text-green-400", external: true },
   { name: "Find Restaurants", href: process.env.NEXT_PUBLIC_RESTAURANTS_URL || "http://localhost:3004", icon: UtensilsCrossed, color: "text-yellow-400", external: true },
   { name: "Skin & Hair Analysis", href: process.env.NEXT_PUBLIC_SKIN_URL || "http://localhost:3002", icon: Droplet, color: "text-blue-400", external: true },
-  { name: "Community", href: process.env.NEXT_PUBLIC_COMMUNITY_URL || "http://localhost:3000/community", icon: Users2, color: "text-pink-400", external: true },
+  { name: "Community", href: communityEntryUrl, icon: Users2, color: "text-pink-400", external: true },
 ];
 
 export function Navigation({ user }: NavigationProps) {

@@ -1,4 +1,9 @@
 /** @type {import('next').NextConfig} */
+const rawCommunityUrl = process.env.NEXT_PUBLIC_COMMUNITY_URL || 'http://localhost:3006';
+const normalizedCommunityUrl = rawCommunityUrl.endsWith('/community')
+  ? rawCommunityUrl
+  : `${rawCommunityUrl.replace(/\/$/, '')}/community`;
+
 const nextConfig = {
   output: 'standalone',
   webpack: (config, { isServer }) => {
@@ -44,11 +49,11 @@ const nextConfig = {
       // Community Next app (UI + /community/api/*) on one upstream port
       {
         source: '/community',
-        destination: `${process.env.NEXT_PUBLIC_COMMUNITY_URL || 'http://localhost:3006/community'}`,
+        destination: normalizedCommunityUrl,
       },
       {
         source: '/community/:path*',
-        destination: `${process.env.NEXT_PUBLIC_COMMUNITY_URL || 'http://localhost:3006/community'}/:path*`,
+        destination: `${normalizedCommunityUrl}/:path*`,
       },
     ];
   },
