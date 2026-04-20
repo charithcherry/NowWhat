@@ -18,12 +18,12 @@ const communityEntryUrl =
   process.env.NEXT_PUBLIC_COMMUNITY_ENTRY_URL ||
   `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/community`;
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-const profileUrl = `${baseUrl}/profile`;
+const absoluteProfileUrl = `${baseUrl}/profile`;
 
 const menuItems = [
-  { name: "Home", href: process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000", icon: Home, color: "text-doom-primary" },
+  { name: "Home", href: process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000", icon: Home, color: "text-doom-primary", basePath: "/" },
   { name: "Dashboard", href: process.env.NEXT_PUBLIC_FITNESS_URL || "http://localhost:3005", icon: Activity, color: "text-doom-accent" },
-  { name: "Physical Fitness", href: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/fitness`, icon: Dumbbell, color: "text-doom-primary" },
+  { name: "Physical Fitness", href: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/fitness`, icon: Dumbbell, color: "text-doom-primary", basePath: "/fitness" },
   { name: "Find Restaurants", href: process.env.NEXT_PUBLIC_RESTAURANTS_URL || "http://localhost:3004", icon: UtensilsCrossed, color: "text-yellow-400" },
   { name: "Skin & Hair", href: process.env.NEXT_PUBLIC_SKIN_URL || "http://localhost:3002", icon: Droplet, color: "text-blue-400" },
   { name: "Community", href: communityEntryUrl, icon: Users2, color: "text-pink-400" },
@@ -32,6 +32,32 @@ const menuItems = [
 export function Navigation({ user }: NavigationProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const getBaseHref = (path: string) => {
+    if (typeof window !== "undefined") {
+      try {
+        if (window.location.origin === new URL(baseUrl).origin) {
+          return path;
+        }
+      } catch (error) {
+        console.error("Invalid base URL:", error);
+      }
+    }
+
+    return new URL(path, baseUrl).toString();
+  };
+
+  const handleBaseNav = (event: React.MouseEvent, path: string) => {
+    event.preventDefault();
+
+    const href = getBaseHref(path);
+    if (href.startsWith("/")) {
+      window.location.href = href;
+      return;
+    }
+
+    window.location.href = `/api/auth/handoff?target=${encodeURIComponent(href)}`;
+  };
 
   const handleExternalNav = (event: React.MouseEvent, href: string) => {
     event.preventDefault();
@@ -49,7 +75,7 @@ export function Navigation({ user }: NavigationProps) {
     } finally {
       // Clear agent profile memory
       Object.keys(localStorage).filter((k) => k.startsWith("wb_agent_profile_")).forEach((k) => localStorage.removeItem(k));
-      window.location.href = baseUrl;
+      window.location.href = getBaseHref("/");
     }
   };
 
@@ -58,7 +84,11 @@ export function Navigation({ user }: NavigationProps) {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-doom-surface/95 backdrop-blur-sm border-b border-doom-primary/20">
         <div className="px-2">
           <div className="flex items-center justify-between h-16">
-            <a href="/" className="flex items-center space-x-2">
+            <a
+              href={baseUrl}
+              onClick={(event) => handleBaseNav(event, "/")}
+              className="flex items-center space-x-2"
+            >
               <img src="/assets/logo.jpg" alt="What Now?" className="h-9 w-auto mix-blend-screen" />
               <span className="text-xl font-bold text-doom-text hidden sm:block">What Now?</span>
             </a>
@@ -70,7 +100,9 @@ export function Navigation({ user }: NavigationProps) {
                   <a
                     key={item.name}
                     href={item.href}
-                    onClick={(event) => handleExternalNav(event, item.href)}
+                    onClick={(event) =>
+                      item.basePath ? handleBaseNav(event, item.basePath) : handleExternalNav(event, item.href)
+                    }
                     className={`flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-doom-bg/50 transition-colors ${item.color}`}
                   >
                     <Icon className="w-5 h-5" />
@@ -81,8 +113,8 @@ export function Navigation({ user }: NavigationProps) {
 
               {user && (
                 <a
-                  href={profileUrl}
-                  onClick={(event) => handleExternalNav(event, profileUrl)}
+                  href={absoluteProfileUrl}
+                  onClick={(event) => handleBaseNav(event, "/profile")}
                   className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-doom-bg/50 transition-colors text-doom-accent"
                 >
                   <UserRound className="w-5 h-5" />
@@ -161,6 +193,10 @@ export function Navigation({ user }: NavigationProps) {
                         href={item.href}
                         onClick={(event) => {
                           setIsOpen(false);
+                          if (item.basePath) {
+                            handleBaseNav(event, item.basePath);
+                            return;
+                          }
                           handleExternalNav(event, item.href);
                         }}
                         className={`flex items-center space-x-4 p-4 rounded-lg hover:bg-doom-bg/50 transition-colors group ${item.color}`}

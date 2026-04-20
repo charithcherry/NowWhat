@@ -41,6 +41,9 @@ type FeatureScreen = {
   ctaLabel: string;
 };
 
+const nutritionUrl = process.env.NEXT_PUBLIC_NUTRITION_URL || "http://localhost:3003";
+const restaurantsUrl = process.env.NEXT_PUBLIC_RESTAURANTS_URL || "http://localhost:3004";
+
 const featureScreens: FeatureScreen[] = [
   {
     id: "fitness",
@@ -75,7 +78,7 @@ const featureScreens: FeatureScreen[] = [
     mediaSrc: "/assets/nutrition.mp4",
     mediaAlt: "Nutrition feature walkthrough",
     icon: UtensilsCrossed,
-    ctaHref: "http://localhost:3003",
+    ctaHref: `/api/auth/handoff?target=${encodeURIComponent(nutritionUrl)}`,
     ctaLabel: "Explore Nutrition",
   },
   {
@@ -93,7 +96,7 @@ const featureScreens: FeatureScreen[] = [
     mediaSrc: "/assets/skincare.mp4",
     mediaAlt: "Skin analysis feature walkthrough",
     icon: Droplets,
-    ctaHref: "http://localhost:3002",
+    ctaHref: "/skin",
     ctaLabel: "Analyse Your Skin",
   },
   {
@@ -111,7 +114,7 @@ const featureScreens: FeatureScreen[] = [
     mediaSrc: "/assets/haircare.jpg",
     mediaAlt: "Haircare analysis preview",
     icon: Scissors,
-    ctaHref: "http://localhost:3002",
+    ctaHref: "/skin",
     ctaLabel: "Analyse Your Hair",
   },
   {
@@ -129,7 +132,7 @@ const featureScreens: FeatureScreen[] = [
     mediaSrc: "/assets/restaurant.mp4",
     mediaAlt: "Restaurant finder feature walkthrough",
     icon: UtensilsCrossed,
-    ctaHref: "http://localhost:3004",
+    ctaHref: `/api/auth/handoff?target=${encodeURIComponent(restaurantsUrl)}`,
     ctaLabel: "Find Restaurants",
   },
   {
@@ -147,7 +150,7 @@ const featureScreens: FeatureScreen[] = [
     mediaSrc: "/assets/workout.jpg",
     mediaAlt: "Community feature",
     icon: Users2,
-    ctaHref: "http://localhost:3000/community",
+    ctaHref: "/community",
     ctaLabel: "Join Community",
   },
 ];

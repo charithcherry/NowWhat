@@ -24,9 +24,7 @@ interface FitnessNavigationProps {
   user?: AuthUser | null;
 }
 
-const communityEntryUrl =
-  process.env.NEXT_PUBLIC_COMMUNITY_ENTRY_URL ||
-  `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/community`;
+const communityEntryUrl = "/community";
 
 const menuItems: MenuItem[] = [
   { name: "Home", href: "/", icon: Home, color: "text-doom-primary" },
@@ -62,8 +60,7 @@ const menuItems: MenuItem[] = [
     name: "Community", 
     href: communityEntryUrl, 
     icon: Users2, 
-    color: "text-pink-400", 
-    external: true 
+    color: "text-pink-400"
   },
 ];
 
